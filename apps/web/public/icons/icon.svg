@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PhoneShare">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="113" fill="url(#g)"/>
+  <g fill="#ffffff">
+    <path d="M256 42 L344 148 L288 148 L288 311 L224 311 L224 148 L168 148 Z"/>
+    <path d="M113 361 h286 v44 h-286 z"/>
+    <path d="M113 405 h33 v33 h-33 z M366 405 h33 v33 h-33 z"/>
+  </g>
+</svg>

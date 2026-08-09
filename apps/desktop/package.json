@@ -1,0 +1,13 @@
+{
+  "name": "phoneshare-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "pnpm -F @phoneshare/web dev --port 5178",
+    "build": "pnpm -F @phoneshare/web build && node scripts/copy-dist.mjs",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

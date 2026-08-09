@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhoneShare Tani</title>
+<style>
+ body{margin:0;padding:16px;background:#0b1020;color:#e6e9f0;
+      font:15px/1.6 -apple-system,system-ui,"Segoe UI",sans-serif}
+ h1{font-size:18px;margin:0 0 4px}
+ p{opacity:.75;margin:0 0 16px;font-size:13px}
+ pre{white-space:pre-wrap;word-break:break-word;background:#151b2e;
+     padding:12px;border-radius:8px;font-size:13px;-webkit-user-select:text;user-select:text}
+ .ok{color:#4ade80} .bad{color:#f87171}
+ button{width:100%;min-height:48px;margin-top:12px;border:0;border-radius:12px;
+        background:#3b82f6;color:#fff;font-size:16px;font-weight:600}
+</style>
+</head>
+<body>
+<h1>PhoneShare Tanı</h1>
+<p>Bu sayfa uygulamadan bağımsız çalışır. Sonucu kopyalayıp iletin.</p>
+<pre id="out">Kontrol ediliyor…</pre>
+<button onclick="copy()">Sonucu kopyala</button>
+<script>
+var lines = [];
+function add(label, value, good) {
+  lines.push((good === undefined ? "  " : good ? "OK " : "!! ") + label + ": " + value);
+  render();
+}
+function render() { document.getElementById("out").textContent = lines.join("\n"); }
+function copy() {
+  var t = lines.join("\n");
+  function fallback() { var a = document.createElement("textarea"); a.value = t;
+    document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); }
+  if (navigator.clipboard) navigator.clipboard.writeText(t).catch(fallback);
+  else fallback();
+}
+
+add("Adres", location.origin);
+add("UA", navigator.userAgent);
+add("secureContext", window.isSecureContext, window.isSecureContext);
+add("serviceWorker", "serviceWorker" in navigator);
+add("crypto.subtle", !!(window.crypto && window.crypto.subtle));
+
+// Uygulamanin gerektirdigi modern JS/CSS ozellikleri — eski iOS'ta eksik olabilir.
+var feats = {
+  "structuredClone": typeof structuredClone === "function",
+  "Array.at": !!Array.prototype.at,
+  "Array.findLast": !!Array.prototype.findLast,
+  "Object.hasOwn": typeof Object.hasOwn === "function",
+  "String.replaceAll": !!String.prototype.replaceAll,
+  "Promise.any": typeof Promise.any === "function",
+  "CSS:color-mix": !!(window.CSS && CSS.supports && CSS.supports("color", "color-mix(in srgb, red 50%, blue)")),
+  "CSS:dvh": !!(window.CSS && CSS.supports && CSS.supports("height", "100dvh")),
+  "CSS:nesting": !!(window.CSS && CSS.supports && CSS.supports("selector(&)"))
+};
+for (var k in feats) add(k, feats[k], feats[k]);
+
+// Sunucuya ve uygulamanin ana JS parcasina gercekten ulasiliyor mu?
+fetch("/api/health").then(function (r) {
+  add("GET /api/health", r.status, r.ok);
+  return r.json();
+}).then(function (d) {
+  add("receiver", d.device_name + " v" + d.version);
+}).catch(function (e) { add("GET /api/health", "BASARISIZ " + e.message, false); });
+
+fetch("/").then(function (r) { return r.text(); }).then(function (html) {
+  var m = html.match(/\/_next\/static\/chunks\/main-app[^"]*\.js/);
+  if (!m) { add("ana JS parcasi", "index.html icinde bulunamadi", false); return; }
+  return fetch(m[0]).then(function (r) { add("ana JS parcasi", r.status, r.ok); });
+}).catch(function (e) { add("ana JS parcasi", "BASARISIZ " + e.message, false); });
+</script>
+</body>
+</html>

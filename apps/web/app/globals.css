@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/* PRD §68 — System / Light / Dark. Tema `html[data-theme]` ile belirlenir. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --background: #f2f2f7;
+  --surface: #ffffff;
+  --foreground: #1c1c1e;
+  --muted: #e9e9ee;
+  --muted-foreground: #6e6e73;
+  --border: #d1d1d6;
+  --primary: #007aff;
+  --primary-foreground: #ffffff;
+  --ring: #007aff;
+  --danger: #ff3b30;
+  --success: #34c759;
+}
+
+[data-theme="dark"] {
+  --background: #000000;
+  --surface: #1c1c1e;
+  --foreground: #f2f2f7;
+  --muted: #2c2c2e;
+  --muted-foreground: #98989d;
+  --border: #38383a;
+  --primary: #0a84ff;
+  --primary-foreground: #ffffff;
+  --ring: #0a84ff;
+  --danger: #ff453a;
+  --success: #30d158;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* iOS: notch/home indicator guvenli alanlari (viewport-fit=cover ile birlikte). */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* iOS Safari'de input odaklaninca sayfanin zoom yapmasini engeller. */
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
