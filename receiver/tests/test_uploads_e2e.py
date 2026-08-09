@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from pathlib import Path
 
 from .conftest import CHUNK, sha256_bytes, upload_file
@@ -10,6 +11,11 @@ from .conftest import CHUNK, sha256_bytes, upload_file
 
 def payload(size: int, seed: bytes = b"P") -> bytes:
     return (seed * ((size // len(seed)) + 1))[:size]
+
+
+def dated_folder(root: Path, target: str | None = None) -> Path:
+    base = root / target if target else root
+    return base / datetime.now().date().isoformat()
 
 
 class TestUploadHappyPath:
@@ -29,7 +35,7 @@ class TestUploadHappyPath:
         assert body["stored_filename"] == "rapor.pdf"
         assert body["sha256"] == sha256_bytes(data)
 
-        stored = target_root / "Belgeler" / "rapor.pdf"
+        stored = dated_folder(target_root, "Belgeler") / "rapor.pdf"
         assert stored.exists()
         assert hashlib.sha256(stored.read_bytes()).hexdigest() == sha256_bytes(data)
         # Gecici dosyalar temizlenmis olmalidir (PRD §30).
@@ -60,7 +66,7 @@ class TestUploadHappyPath:
         assert client.post(f"/api/uploads/{init['upload_id']}/complete").json()["status"] == (
             "COMPLETED"
         )
-        assert (target_root / "serbest.bin").exists()
+        assert (dated_folder(target_root) / "serbest.bin").exists()
 
     def test_dosya_adi_temizlenir(self, client, belgeler, target_root: Path) -> None:
         """PRD §51 — traversal ve gecersiz karakterler hedefe sizamaz."""
@@ -69,7 +75,7 @@ class TestUploadHappyPath:
             client, data, filename=r"..\..\Windows\CON.txt", target_id=belgeler
         )
         client.post(f"/api/uploads/{init['upload_id']}/complete")
-        files = list((target_root / "Belgeler").iterdir())
+        files = list(dated_folder(target_root, "Belgeler").iterdir())
         assert len(files) == 1
         assert files[0].name == "_CON.txt"
 
@@ -112,7 +118,7 @@ class TestResume:
         done = client.post(f"/api/uploads/{first['upload_id']}/complete")
         assert done.status_code == 200
         assert done.json()["verified"] is True
-        stored = target_root / "Belgeler" / "buyuk.bin"
+        stored = dated_folder(target_root, "Belgeler") / "buyuk.bin"
         assert hashlib.sha256(stored.read_bytes()).hexdigest() == sha256_bytes(data)
 
     def test_ayni_chunk_tekrar_gonderilebilir(self, client, belgeler) -> None:
@@ -232,7 +238,7 @@ class TestHashVerification:
         response = client.post(f"/api/uploads/{init['upload_id']}/complete")
         assert response.status_code == 422
         assert response.json()["code"] == "checksum_mismatch"
-        assert not (target_root / "Belgeler" / "bozuk.bin").exists()
+        assert not (dated_folder(target_root, "Belgeler") / "bozuk.bin").exists()
 
         transfers = client.get("/api/transfers").json()["items"]
         assert transfers[0]["status"] == "FAILED"
@@ -253,7 +259,7 @@ class TestConflicts:
                 ]
             )
         assert names == ["rapor.pdf", "rapor (1).pdf", "rapor (2).pdf"]
-        assert (target_root / "Belgeler" / "rapor (2).pdf").exists()
+        assert (dated_folder(target_root, "Belgeler") / "rapor (2).pdf").exists()
 
     def test_uzerine_yaz(self, client, belgeler, target_root: Path) -> None:
         client.put("/api/settings", json={"conflict_policy": "overwrite"})
@@ -261,8 +267,8 @@ class TestConflicts:
             data = payload(64, seed)
             init, _ = upload_file(client, data, filename="tek.bin", target_id=belgeler)
             client.post(f"/api/uploads/{init['upload_id']}/complete")
-        assert list((target_root / "Belgeler").iterdir()).__len__() == 1
-        assert (target_root / "Belgeler" / "tek.bin").read_bytes()[:1] == b"B"
+        assert list(dated_folder(target_root, "Belgeler").iterdir()).__len__() == 1
+        assert (dated_folder(target_root, "Belgeler") / "tek.bin").read_bytes()[:1] == b"B"
 
     def test_atla(self, client, belgeler, target_root: Path) -> None:
         data = payload(64, b"A")
@@ -274,7 +280,7 @@ class TestConflicts:
         init2, _ = upload_file(client, data2, filename="tek.bin", target_id=belgeler)
         response = client.post(f"/api/uploads/{init2['upload_id']}/complete")
         assert response.json()["status"] == "CANCELLED"
-        assert (target_root / "Belgeler" / "tek.bin").read_bytes()[:1] == b"A"
+        assert (dated_folder(target_root, "Belgeler") / "tek.bin").read_bytes()[:1] == b"A"
 
 
 class TestLimits:

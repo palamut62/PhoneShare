@@ -363,7 +363,10 @@ pub fn get_autostart() -> bool {
 #[tauri::command]
 pub fn set_autostart(state: State<'_, AppState>, enabled: bool) -> Result<bool, String> {
     crate::autostart::set_enabled(enabled)?;
-    with_config(&state, |config| config.autostart = enabled);
+    with_config(&state, |config| {
+        config.autostart = enabled;
+        config.autostart_initialized = true;
+    });
     persist(&state)?;
     Ok(crate::autostart::is_enabled())
 }

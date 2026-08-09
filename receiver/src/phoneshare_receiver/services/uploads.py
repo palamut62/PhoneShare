@@ -310,6 +310,9 @@ async def complete_upload(
 
     # --- hedef klasor + adlandirma + cakisma politikasi ---
     target_row, target_dir = await targets.resolve_target_dir(session, config, upload.target_id)
+    # Every completed transfer is grouped under the computer's local calendar date.
+    # Reuse the same directory for all files received on the same day.
+    target_dir = target_dir / datetime.now().date().isoformat()
     target_dir.mkdir(parents=True, exist_ok=True)
 
     final_name = apply_naming_template(

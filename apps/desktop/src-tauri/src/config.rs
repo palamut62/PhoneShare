@@ -46,6 +46,8 @@ pub struct DesktopConfig {
     pub tls_keyfile: Option<String>,
     /// Windows acilisinda otomatik baslat (PRD §7).
     pub autostart: bool,
+    /// Eski kurulumlarda autostart'i bir kez varsayilan acik duruma tasimak icin.
+    pub autostart_initialized: bool,
     /// Pencere kapatilinca tepsiye insin (PRD §8).
     pub minimize_to_tray: bool,
     pub theme: String,
@@ -65,7 +67,8 @@ impl Default for DesktopConfig {
             receiver_tls: false,
             tls_certfile: None,
             tls_keyfile: None,
-            autostart: false,
+            autostart: true,
+            autostart_initialized: false,
             minimize_to_tray: true,
             theme: "system".to_string(),
         }
@@ -193,6 +196,8 @@ mod tests {
         assert_eq!(config.receiver_port, 8765);
         assert!(!config.setup_completed);
         assert!(config.minimize_to_tray);
+        assert!(config.autostart);
+        assert!(!config.autostart_initialized);
         assert!(config.tls_certfile.is_none());
         assert!(config.tls_keyfile.is_none());
     }

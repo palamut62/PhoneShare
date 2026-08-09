@@ -36,6 +36,9 @@ pub fn shutdown(app: &AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            commands::show_main_window(app.clone());
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::new())
@@ -85,12 +88,22 @@ pub fn run() {
             app.state::<AppState>().set_web_dist(web_dist);
 
             // Autostart (PRD §7): kayit defterindeki gercek durum config'e islenir.
+            let should_initialize_autostart = !app
+                .state::<AppState>()
+                .config
+                .lock()
+                .map(|config| config.autostart_initialized)
+                .unwrap_or(false);
+            if should_initialize_autostart {
+                let _ = autostart::set_enabled(true);
+            }
             let autostart_enabled = autostart::is_enabled();
             {
                 let state = app.state::<AppState>();
                 let mut config = state.config.lock().expect("config kilidi");
-                if config.autostart != autostart_enabled {
+                if config.autostart != autostart_enabled || !config.autostart_initialized {
                     config.autostart = autostart_enabled;
+                    config.autostart_initialized = true;
                     let _ = config::save(&config);
                 }
             }
