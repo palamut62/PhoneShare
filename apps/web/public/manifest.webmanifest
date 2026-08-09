@@ -1,13 +1,13 @@
 {
   "name": "PhoneShare",
   "short_name": "PhoneShare",
-  "description": "Telefonunuzdaki dosyaları doğrudan kendi Windows bilgisayarınızdaki klasörlere gönderin.",
+  "description": "Send files from your phone directly to folders on your Windows computer.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "lang": "tr",
+  "lang": "en",
   "dir": "ltr",
   "theme_color": "#007aff",
   "background_color": "#f2f2f7",
@@ -24,7 +24,7 @@
     { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "shortcuts": [
-    { "name": "Transferler", "url": "/transfers/", "description": "Transfer geçmişi" },
-    { "name": "Ayarlar", "url": "/settings/", "description": "Tema, dil ve gönderim ayarları" }
+    { "name": "Transfers", "url": "/transfers/", "description": "Transfer history" },
+    { "name": "Settings", "url": "/settings/", "description": "Theme and sending settings" }
   ]
 }

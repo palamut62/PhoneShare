@@ -10,13 +10,13 @@ import { formatBytes, formatEta, formatSpeed } from "@/lib/upload/speed";
 import type { QueueItem } from "@/lib/upload/types";
 
 const STATUS_LABEL: Record<QueueItem["status"], string> = {
-  QUEUED: "Sırada",
-  PREPARING: "Hazırlanıyor",
-  UPLOADING: "Gönderiliyor",
-  VERIFYING: "Doğrulanıyor",
-  COMPLETED: "Tamamlandı",
-  FAILED: "Başarısız",
-  CANCELLED: "İptal edildi",
+  QUEUED: "Queued",
+  PREPARING: "Preparing",
+  UPLOADING: "Sending",
+  VERIFYING: "Verifying",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+  CANCELLED: "Cancelled",
 };
 
 /** PRD §24/§25 — dosya basina ilerleme + coklu dosyada toplu ozet. */
@@ -42,14 +42,14 @@ export function QueuePanel({
       <div className="flex items-center justify-between gap-3">
         <CardTitle>TRANSFERLER</CardTitle>
         <Button variant="ghost" className="min-h-9 px-2 text-xs" onClick={onClear}>
-          Tamamlananları temizle
+          Clear completed
         </Button>
       </div>
 
       {summary.total > 1 ? (
         <div className="mt-3 rounded-xl bg-muted p-3">
           <p className="text-sm font-medium">
-            {summary.total} Dosya · {summary.completed} / {summary.total} tamamlandı
+            {summary.total} Files · {summary.completed} / {summary.total} completed
           </p>
           <Progress className="mt-2" value={summary.percent} label="Toplam ilerleme" />
           <p className="mt-2 text-xs text-muted-foreground">

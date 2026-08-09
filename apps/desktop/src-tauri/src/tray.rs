@@ -99,30 +99,30 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let receiver_line = if online {
         "● Receiver Online"
     } else {
-        "● Receiver Cevrimdisi"
+        "● Receiver Offline"
     };
     let receiver =
         MenuItem::with_id(app, MENU_STATUS_RECEIVER, receiver_line, false, None::<&str>)?;
     let device_line = if connected > 0 {
-        format!("iPhone ● {connected} Bagli")
+        format!("iPhone ● {connected} Connected")
     } else {
-        "iPhone ● Bagli Degil".to_string()
+        "iPhone ● Not Connected".to_string()
     };
     let device =
         MenuItem::with_id(app, MENU_STATUS_DEVICE, &device_line, false, None::<&str>)?;
 
     // PRD §12 — eslestirme en gorunur eylem: durum satirlarinin hemen altinda.
     let add_phone =
-        MenuItem::with_id(app, MENU_ADD_PHONE, "+ Yeni Telefon Ekle", true, None::<&str>)?;
+        MenuItem::with_id(app, MENU_ADD_PHONE, "+ Add New Phone", true, None::<&str>)?;
     let web_panel =
-        MenuItem::with_id(app, MENU_WEB_PANEL, "Web Panelini Ac", true, None::<&str>)?;
+        MenuItem::with_id(app, MENU_WEB_PANEL, "Open Web Panel", true, None::<&str>)?;
     let incoming =
-        MenuItem::with_id(app, MENU_INCOMING, "Gelen Dosyalar", true, None::<&str>)?;
-    let open_folder = MenuItem::with_id(app, MENU_OPEN_FOLDER, "Klasoru Ac", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, MENU_SETTINGS, "Ayarlar", true, None::<&str>)?;
+        MenuItem::with_id(app, MENU_INCOMING, "Incoming Files", true, None::<&str>)?;
+    let open_folder = MenuItem::with_id(app, MENU_OPEN_FOLDER, "Open Folder", true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, MENU_SETTINGS, "Settings", true, None::<&str>)?;
     let stop =
-        MenuItem::with_id(app, MENU_STOP_RECEIVER, "Receiver'i Durdur", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, MENU_QUIT, "Cikis", true, None::<&str>)?;
+        MenuItem::with_id(app, MENU_STOP_RECEIVER, "Stop Receiver", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, MENU_QUIT, "Quit", true, None::<&str>)?;
 
     Menu::with_items(
         app,

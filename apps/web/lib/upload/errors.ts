@@ -99,7 +99,7 @@ export function isRetryable(code: UploadErrorCode): boolean {
 }
 
 /** PRD §71 — kullanici dostu, eylem iceren Turkce mesajlar. */
-export function toUserFacingError(error: unknown, deviceName = "bilgisayar"): UserFacingError {
+export function toUserFacingError(error: unknown, deviceName = "computer"): UserFacingError {
   const code: UploadErrorCode =
     error instanceof UploadError ? error.code : inferCodeFromUnknown(error);
 
@@ -107,130 +107,126 @@ export function toUserFacingError(error: unknown, deviceName = "bilgisayar"): Us
     case "unauthorized":
       return {
         code,
-        title: "Eşleştirme geçersiz",
-        message:
-          "Bu cihazın bilgisayarla bağlantısı kaldırılmış görünüyor. Yeniden eşleştirmeniz gerekiyor.",
-        actionLabel: "Yeniden Eşleştir",
+        title: "Pairing invalid",
+        message: "This device is no longer paired with the computer. Pair it again.",
+        actionLabel: "Pair Again",
         action: "pair",
         retryable: false,
       };
     case "forbidden":
       return {
         code,
-        title: "İzin verilmedi",
-        message: "Bu işlem için yetkiniz yok. Bilgisayardaki hedef ayarlarını kontrol edin.",
-        actionLabel: "Ayarlar",
+        title: "Permission denied",
+        message: "You do not have permission for this action. Check the target settings on the computer.",
+        actionLabel: "Settings",
         action: "settings",
         retryable: false,
       };
     case "not_found":
       return {
         code,
-        title: "Bulunamadı",
-        message: "İşlem kaydı bulunamadı. Dosyayı yeniden göndermeyi deneyin.",
-        actionLabel: "Tekrar Dene",
+        title: "Not found",
+        message: "The operation could not be found. Try sending the file again.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: false,
       };
     case "conflict":
       return {
         code,
-        title: "Transfer yarıda kalmış",
-        message: "Dosyanın bazı parçaları eksik kaldı. Tekrar denediğinizde kaldığı yerden devam eder.",
-        actionLabel: "Tekrar Dene",
+        title: "Transfer interrupted",
+        message: "Some file chunks are missing. Retrying will continue where it stopped.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     case "too_large":
       return {
         code,
-        title: "Dosya çok büyük",
-        message:
-          "Dosya, bilgisayarda tanımlı boyut sınırını aşıyor. Bilgisayar ayarlarından sınırı artırabilirsiniz.",
-        actionLabel: "Ayarlar",
+        title: "File too large",
+        message: "The file exceeds the size limit configured on the computer.",
+        actionLabel: "Settings",
         action: "settings",
         retryable: false,
       };
     case "validation_error":
       return {
         code,
-        title: "Gönderim reddedildi",
-        message: "Dosya bilgileri kabul edilmedi. Dosyayı yeniden seçip tekrar deneyin.",
-        actionLabel: "Tekrar Dene",
+        title: "Send rejected",
+        message: "The file information was not accepted. Select the file again and retry.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: false,
       };
     case "checksum_mismatch":
       return {
         code,
-        title: "Dosya doğrulanamadı",
-        message:
-          "Dosya bilgisayara eksiksiz ulaşmadı ve güvenlik için kaydedilmedi. Tekrar göndermeyi deneyin.",
-        actionLabel: "Tekrar Dene",
+        title: "File verification failed",
+        message: "The complete file did not reach the computer and was not saved. Try again.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: false,
       };
     case "rate_limited":
       return {
         code,
-        title: "Çok fazla istek",
-        message: "Kısa sürede çok fazla istek gönderildi. Birazdan otomatik olarak tekrar denenecek.",
-        actionLabel: "Tekrar Dene",
+        title: "Too many requests",
+        message: "Too many requests were sent. PhoneShare will retry shortly.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     case "insufficient_storage":
       return {
         code,
-        title: "Disk alanı yetersiz",
-        message: "Bilgisayarda yeterli disk alanı bulunmuyor. Yer açtıktan sonra tekrar deneyin.",
-        actionLabel: "Tekrar Dene",
+        title: "Not enough disk space",
+        message: "The computer does not have enough disk space. Free some space and try again.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: false,
       };
     case "server_error":
       return {
         code,
-        title: "Bilgisayar yanıt veremedi",
-        message: `${deviceName} beklenmedik bir sorunla karşılaştı. Birazdan tekrar deneyin.`,
-        actionLabel: "Tekrar Dene",
+        title: "Computer could not respond",
+        message: `${deviceName} encountered an unexpected problem. Try again shortly.`,
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     case "network_error":
       return {
         code,
-        title: "Bilgisayara ulaşılamıyor",
-        message: `${deviceName} açık ve PhoneShare Receiver çalışıyor olmalı. Aynı ağda olduğunuzdan emin olun.`,
-        actionLabel: "Tekrar Dene",
+        title: "Computer unreachable",
+        message: `${deviceName} must be on with PhoneShare Receiver running. Make sure you are on the same network.`,
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     case "offline":
       return {
         code,
-        title: "Bilgisayar çevrimdışı",
-        message:
-          "Bilgisayar çevrimdışı. Gönderim için bilgisayarın çevrimiçi olması gerekiyor.",
-        actionLabel: "Tekrar Dene",
+        title: "Computer offline",
+        message: "The computer is offline. It must be online to receive files.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     case "cancelled":
       return {
         code,
-        title: "Transfer iptal edildi",
-        message: "Gönderim sizin tarafınızdan durduruldu.",
-        actionLabel: "Tekrar Dene",
+        title: "Transfer cancelled",
+        message: "You stopped the transfer.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };
     default:
       return {
         code: "unknown",
-        title: "Bir sorun oluştu",
-        message: "Beklenmeyen bir sorun nedeniyle gönderim tamamlanamadı. Tekrar deneyin.",
-        actionLabel: "Tekrar Dene",
+        title: "Something went wrong",
+        message: "The transfer could not be completed because of an unexpected problem. Try again.",
+        actionLabel: "Try Again",
         action: "retry",
         retryable: true,
       };

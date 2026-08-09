@@ -30,8 +30,8 @@ function defaultDeviceName(): string {
   const ua = navigator.userAgent;
   if (/iPhone/.test(ua)) return "iPhone";
   if (/iPad/.test(ua)) return "iPad";
-  if (/Android/.test(ua)) return "Android Telefon";
-  return "Telefon";
+  if (/Android/.test(ua)) return "Android Phone";
+  return "Phone";
 }
 
 /** Telefon tarafi: bilgisayarda uretilen kodu girer (PRD §12). PC paneli bu ekrani gormez. */
@@ -78,10 +78,10 @@ export function PairingScreen() {
           shown.code === "forbidden"
             ? {
                 ...shown,
-                title: "Kod geçersiz",
+                title: "Invalid code",
                 message:
-                  "Eşleştirme kodu hatalı veya süresi dolmuş. Bilgisayarda yeni bir kod oluşturup tekrar deneyin.",
-                actionLabel: "Tekrar Dene",
+                  "The pairing code is incorrect or expired. Generate a new code on the computer and try again.",
+                actionLabel: "Try Again",
               }
             : shown,
         );
@@ -163,9 +163,9 @@ export function PairingScreen() {
       stopScan();
       setError({
         code: "unknown",
-        title: "Kameraya erişilemedi",
-        message: "Kamera izni verilmedi. Eşleştirme kodunu elle girerek devam edebilirsiniz.",
-        actionLabel: "Tamam",
+        title: "Camera unavailable",
+        message: "Camera permission was not granted. You can enter the pairing code manually.",
+        actionLabel: "OK",
         action: "dismiss",
         retryable: false,
       });
@@ -178,9 +178,9 @@ export function PairingScreen() {
         <span className="rounded-[18px] bg-primary p-3 text-white">
           <ShieldCheck aria-hidden className="h-7 w-7" />
         </span>
-        <h1 className="text-2xl font-semibold">Bilgisayarınızı ekleyin</h1>
+        <h1 className="text-2xl font-semibold">Add your computer</h1>
         <p className="text-sm text-muted-foreground">
-          Bilgisayardaki PhoneShare penceresinde görünen 6 haneli kodu girin ya da QR kodu okutun.
+          Enter the six-digit code shown in PhoneShare on your computer, or scan the QR code.
         </p>
       </header>
 
@@ -193,7 +193,7 @@ export function PairingScreen() {
           }}
         >
           <div className="flex flex-col gap-2">
-            <Label htmlFor="pairing-code">Eşleştirme kodu</Label>
+            <Label htmlFor="pairing-code">Pairing code</Label>
             <Input
               id="pairing-code"
               value={code}
@@ -205,12 +205,12 @@ export function PairingScreen() {
               className="text-center text-2xl tracking-[0.35em]"
             />
             <p id="pairing-code-hint" className="text-xs text-muted-foreground">
-              Kod 5 dakika geçerlidir.
+              The code is valid for 5 minutes.
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="device-name">Bu cihazın adı</Label>
+            <Label htmlFor="device-name">Device name</Label>
             <Input
               id="device-name"
               value={deviceName}
@@ -221,17 +221,17 @@ export function PairingScreen() {
 
           <Button type="submit" size="lg" disabled={!isCompletePairingCode(code) || busy}>
             {busy ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <KeyRound aria-hidden className="h-4 w-4" />}
-            {busy ? "Bağlanıyor…" : "Bağlan"}
+            {busy ? "Connecting…" : "Connect"}
           </Button>
 
           {scanSupported ? (
             <Button type="button" variant="secondary" size="lg" onClick={() => void startScan()}>
               <Camera aria-hidden className="h-4 w-4" />
-              QR Kod Tara
+              Scan QR Code
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Bu tarayıcı QR taramayı desteklemiyor. Kodu elle girebilirsiniz.
+              This browser does not support QR scanning. Enter the code manually.
             </p>
           )}
         </form>
@@ -240,7 +240,7 @@ export function PairingScreen() {
           <div className="mt-4 overflow-hidden rounded-xl border border-border">
             <video ref={videoRef} playsInline muted className="h-56 w-full bg-black object-cover" />
             <Button variant="ghost" className="w-full" onClick={stopScan}>
-              Taramayı Durdur
+              Stop Scanning
             </Button>
           </div>
         ) : (
@@ -259,7 +259,7 @@ export function PairingScreen() {
       </Card>
 
       <p className="px-2 text-center text-xs leading-5 text-muted-foreground">
-        Dosyalar doğrudan bilgisayarınıza gider. Buluta yüklenmez.
+        Files go directly to your computer. Nothing is uploaded to the cloud.
       </p>
 
       <InstallGuide />

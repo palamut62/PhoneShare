@@ -55,7 +55,7 @@ function SettingsScreen() {
 
       <div className="flex flex-col gap-4 px-4 py-4">
         <Card>
-          <CardTitle>GÖRÜNÜM</CardTitle>
+          <CardTitle>APPEARANCE</CardTitle>
           <div className="mt-3 flex flex-col gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="theme">{t.theme}</Label>
@@ -76,7 +76,6 @@ function SettingsScreen() {
                 value={preferences.language}
                 onChange={(event) => void savePreferences({ language: event.target.value as Language })}
               >
-                <option value="tr">Türkçe</option>
                 <option value="en">English</option>
               </Select>
             </div>
@@ -84,7 +83,7 @@ function SettingsScreen() {
         </Card>
 
         <Card>
-          <CardTitle>GÖNDERİM</CardTitle>
+          <CardTitle>SENDING</CardTitle>
           <div className="mt-2 divide-y divide-border">
             <Toggle
               id="quick-send"
@@ -114,7 +113,7 @@ function SettingsScreen() {
               ))}
             </Select>
             <p className="text-xs text-muted-foreground">
-              Bilgisayar kendi parça boyutunu bildirirse o değer kullanılır.
+              The computer&apos;s preferred chunk size takes priority when available.
             </p>
           </div>
         </Card>
@@ -124,22 +123,21 @@ function SettingsScreen() {
         <RulesCard />
 
         <Card>
-          <CardTitle>BİLGİ</CardTitle>
+          <CardTitle>INFORMATION</CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">
-            Dosyalarınız doğrudan bilgisayarınıza aktarılır; PhoneShare&apos;a ait bir bulut sunucuda saklanmaz.
+            Files are transferred directly to your computer and are not stored on a PhoneShare cloud server.
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Sayfa yenilendiğinde bekleyen dosyaların içeriği tarayıcıda saklanmaz; dosyaları yeniden seçmeniz
-            gerekir.
+            Pending file contents are not stored in the browser after a refresh; select the files again.
           </p>
         </Card>
 
         <ConnectionCard />
 
         <Card>
-          <CardTitle>CİHAZ</CardTitle>
+          <CardTitle>DEVICE</CardTitle>
           <p className="mt-2 text-sm text-muted-foreground">
-            Eşleşen cihaz: <strong className="text-foreground">{session?.deviceName ?? "—"}</strong>
+            Paired device: <strong className="text-foreground">{session?.deviceName ?? "—"}</strong>
           </p>
           <Button className="mt-3 w-full sm:w-auto" onClick={openPairDialog}>
             <Plus aria-hidden className="h-4 w-4" />
@@ -148,14 +146,14 @@ function SettingsScreen() {
           {confirmReset ? (
             <div className="mt-3 rounded-xl bg-danger/10 p-3">
               <p className="text-sm text-foreground">
-                Eşleştirme kaldırılacak ve yeniden kod girmeniz gerekecek. Devam edilsin mi?
+                This device will be unpaired and will require a new code. Continue?
               </p>
               <div className="mt-3 flex gap-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setConfirmReset(false)}>
                   {t.cancel}
                 </Button>
                 <Button variant="danger" className="flex-1" onClick={() => void unpair()}>
-                  Kaldır
+                  Remove
                 </Button>
               </div>
             </div>
@@ -177,7 +175,7 @@ function SettingsScreen() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Ürün sahibinin X profili"
+              aria-label="Product owner X profile"
             >
               <span aria-hidden className="text-base font-semibold">
                 𝕏
@@ -189,7 +187,7 @@ function SettingsScreen() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Ürün sahibinin GitHub profili"
+              aria-label="Product owner GitHub profile"
             >
               <Github aria-hidden className="h-4 w-4" />
               palamut62
@@ -413,7 +411,7 @@ function PresetsCard() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{preset.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {target ? target.name : "Hedef seçilmedi"}
+                    {target ? target.name : "No target selected"}
                   </p>
                 </div>
                 <button
@@ -443,11 +441,11 @@ function PresetsCard() {
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Şantiye Fotoğrafı"
+          placeholder="Site Photo"
           aria-label={t.presetName}
         />
         <Select value={targetId} onChange={(event) => setTargetId(event.target.value)} aria-label={t.target}>
-          <option value="">Hedef seçilmedi</option>
+          <option value="">No target selected</option>
           {targets.map((target) => (
             <option key={target.id} value={target.id}>
               {target.name}

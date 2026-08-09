@@ -63,9 +63,9 @@ export function FileReview({
           >
             <div className="flex items-center justify-between gap-2">
               <h2 id={headingId} className="text-lg font-semibold">
-                Gönderilecek Dosyalar
+                Files to Send
               </h2>
-              <Button variant="ghost" size="icon" aria-label="Kapat" onClick={onCancel}>
+              <Button variant="ghost" size="icon" aria-label="Close" onClick={onCancel}>
                 <X aria-hidden className="h-4 w-4" />
               </Button>
             </div>
@@ -80,7 +80,7 @@ export function FileReview({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`${file.name} dosyasını listeden çıkar`}
+                    aria-label={`Remove ${file.name} from the list`}
                     onClick={() => onRemove(index)}
                   >
                     <X aria-hidden className="h-4 w-4" />
@@ -90,7 +90,7 @@ export function FileReview({
             </ul>
 
             <p className="mt-2 text-sm font-medium">
-              {files.length} Dosya · {formatBytes(total, locale)}
+              {files.length} Files · {formatBytes(total, locale)}
             </p>
 
             <div className="mt-4">
@@ -99,12 +99,12 @@ export function FileReview({
                 targets={targets}
                 value={targetId}
                 onChange={onTargetChange}
-                label="Hedef klasör"
+                label="Target folder"
               />
             </div>
 
             <p className="mt-3 text-xs text-muted-foreground">
-              Hedef bilgisayar: <strong>{deviceName ?? "Bilgisayar"}</strong>
+              Target computer: <strong>{deviceName ?? "Computer"}</strong>
             </p>
 
             {!isOnline ? (
@@ -113,7 +113,7 @@ export function FileReview({
                 className="mt-3 flex items-start gap-2 rounded-xl bg-danger/10 p-3 text-xs text-foreground"
               >
                 <CloudOff aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
-                Bilgisayar çevrimdışı. Gönderim için bilgisayarın çevrimiçi olması gerekiyor.
+                The computer is offline. It must be online to receive files.
               </p>
             ) : null}
 
@@ -123,17 +123,17 @@ export function FileReview({
                 className="mt-3 flex items-start gap-2 rounded-xl bg-muted p-3 text-xs text-foreground"
               >
                 <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                Transfer tamamlanana kadar PhoneShare&apos;ı açık tutmanız önerilir.
+                Keep PhoneShare open until the transfer completes.
               </p>
             ) : null}
 
             <div className="mt-4 flex gap-2">
               <Button variant="secondary" size="lg" className="flex-1" onClick={onCancel}>
-                Vazgeç
+                Cancel
               </Button>
               <Button size="lg" className="flex-1" onClick={onConfirm} disabled={!isOnline}>
                 <Send aria-hidden className="h-4 w-4" />
-                GÖNDER
+                SEND
               </Button>
             </div>
           </motion.div>

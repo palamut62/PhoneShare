@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PhoneShare",
   description:
-    "iPhone'daki dosyaları kendi Windows bilgisayarınızdaki klasörlere doğrudan gönderin. Bulut yok.",
+    "Send files from your phone directly to folders on your Windows computer. No cloud required.",
   manifest: "/manifest.webmanifest",
   applicationName: "PhoneShare",
   appleWebApp: {
@@ -65,7 +65,7 @@ function show(title,detail){
   }catch(e){}
 }
 window.addEventListener("error",function(e){
-  if(e && e.target && e.target !== window && e.target.src){show("Dosya yuklenemedi",String(e.target.src));return;}
+  if(e && e.target && e.target !== window && e.target.src){show("A file could not be loaded",String(e.target.src));return;}
   show("Hata", (e && e.message ? e.message : "bilinmeyen")+" @ "+(e && e.filename ? e.filename+":"+e.lineno : "?"));
 },true);
 window.addEventListener("unhandledrejection",function(e){
@@ -80,7 +80,7 @@ setTimeout(function(){
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />

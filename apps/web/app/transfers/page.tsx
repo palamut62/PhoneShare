@@ -53,7 +53,7 @@ function TransfersScreen() {
               id="transfer-search"
               value={rawQuery}
               onChange={(event) => setRawQuery(event.target.value)}
-              placeholder="Dosya adı, hedef, tarih…"
+              placeholder="File name, target, date…"
               className="pl-9"
               type="search"
             />
@@ -81,7 +81,7 @@ function TransfersScreen() {
                         {formatBytes(transfer.size, locale)} · {formatDateTime(transfer.started_at, locale)}
                       </p>
                       {transfer.status === "FAILED" ? (
-                        <p className="mt-1 text-xs text-danger">Transfer başarısız oldu.</p>
+                        <p className="mt-1 text-xs text-danger">Transfer failed.</p>
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">

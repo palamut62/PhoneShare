@@ -59,7 +59,7 @@ fn with_config<T>(state: &State<'_, AppState>, action: impl FnOnce(&mut DesktopC
 }
 
 fn persist(state: &State<'_, AppState>) -> Result<(), String> {
-    let guard = state.config.lock().map_err(|_| "Ayar okunamadi.".to_string())?;
+    let guard = state.config.lock().map_err(|_| "Could not read settings.".to_string())?;
     config::save(&guard)
 }
 

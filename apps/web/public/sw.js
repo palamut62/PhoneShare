@@ -7,7 +7,7 @@
  * - Surum degisince eski onbellekler silinir.
  */
 
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = `phoneshare-shell-${VERSION}`;
 const ASSET_CACHE = `phoneshare-assets-${VERSION}`;
 

@@ -75,7 +75,7 @@ describe("hata eslemesi (PRD §71)", () => {
 
   it("PC cevrimdisi mesaji PRD §54 metnini kullanir", () => {
     expect(toUserFacingError(new UploadError("offline")).message).toBe(
-      "Bilgisayar çevrimdışı. Gönderim için bilgisayarın çevrimiçi olması gerekiyor.",
+      "The computer is offline. It must be online to receive files.",
     );
   });
 

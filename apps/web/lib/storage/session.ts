@@ -55,7 +55,7 @@ export interface Preferences {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: "system",
-  language: "tr",
+  language: "en",
   quickSend: false,
   rememberLastTarget: true,
   lastTargetId: null,
@@ -119,7 +119,7 @@ export async function clearSession(): Promise<void> {
 
 export async function getPreferences(): Promise<Preferences> {
   const stored = await idbGet<Partial<Preferences>>(PREFS_KEY);
-  return { ...DEFAULT_PREFERENCES, ...(stored ?? {}) };
+  return { ...DEFAULT_PREFERENCES, ...(stored ?? {}), language: "en" };
 }
 
 export function setPreferences(preferences: Preferences): Promise<void> {

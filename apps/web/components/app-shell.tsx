@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (view === "loading") {
     return (
       <div className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
-        <span className="sr-only">Yükleniyor</span>
+        <span className="sr-only">Loading</span>
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
       </div>
     );
@@ -95,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col md:max-w-none md:pl-56">
       <div className="mx-auto w-full max-w-4xl flex-1 pb-24 md:pb-8">{children}</div>
       <nav
-        aria-label="Ana gezinme"
+        aria-label="Main navigation"
         className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >

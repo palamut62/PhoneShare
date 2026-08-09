@@ -67,7 +67,7 @@ describe("UploadQueue", () => {
     queue.start();
     await vi.waitFor(() => expect(queue.items()[0]?.status).toBe("FAILED"));
     expect(queue.items()[0]?.error?.code).toBe("checksum_mismatch");
-    expect(queue.items()[0]?.error?.actionLabel).toBe("Tekrar Dene");
+    expect(queue.items()[0]?.error?.actionLabel).toBe("Try Again");
   });
 
   it("iptal edilen is CANCELLED olur", () => {
@@ -132,7 +132,7 @@ describe("UploadQueue", () => {
     const restored = queue.get("old");
     expect(restored?.status).toBe("FAILED");
     expect(restored?.hasFileHandle).toBe(false);
-    expect(restored?.error?.message).toContain("dosyayı tekrar seçin");
+    expect(restored?.error?.message).toContain("Select the file again");
     expect(queue.retry("old")).toBe(false);
   });
 
@@ -189,6 +189,6 @@ describe("UploadQueue", () => {
     queue.add(file(4), null);
     queue.start();
     await vi.waitFor(() => expect(queue.items()[0]?.status).toBe("FAILED"));
-    expect(queue.items()[0]?.error?.title).toBe("Disk alanı yetersiz");
+    expect(queue.items()[0]?.error?.title).toBe("Not enough disk space");
   });
 });

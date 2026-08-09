@@ -22,7 +22,7 @@ export function StatusHeader({
       <div>
         <h1 className="text-xl font-semibold">{title ?? t.appName}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {deviceName ?? "Bilgisayar"} · <span className="font-medium text-foreground">{label}</span>
+          {deviceName ?? "Computer"} · <span className="font-medium text-foreground">{label}</span>
         </p>
       </div>
     </header>

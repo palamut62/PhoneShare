@@ -223,7 +223,7 @@ impl Sidecar {
 
         let mut child = command
             .spawn()
-            .map_err(|_| "Receiver baslatilamadi. Kurulumu kontrol edin.".to_string())?;
+            .map_err(|_| "Could not start Receiver. Check the installation.".to_string())?;
 
         if let Some(stdout) = child.stdout.take() {
             self.spawn_reader(app.clone(), stdout, "stdout");

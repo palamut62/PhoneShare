@@ -107,8 +107,8 @@ function HomeScreen() {
           >
             <CloudOff aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
             <p className="text-sm text-foreground">
-              Bilgisayar çevrimdışı. Gönderim için bilgisayarın çevrimiçi olması gerekiyor. Dosya seçebilirsiniz,
-              ancak gönderim bilgisayar açıldığında yapılmalıdır.
+              The computer is offline. It must be online to receive files. You can select files now and send them
+              when the computer is available.
             </p>
           </div>
         ) : null}
@@ -227,7 +227,7 @@ function HomeScreen() {
             href="/transfers"
             className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Tümünü gör →
+            View all →
           </Link>
         </Card>
       </div>
@@ -267,7 +267,7 @@ function HomeScreen() {
       {sendMenuOpen ? (
         <button
           type="button"
-          aria-label="Gönderim menüsünü kapat"
+          aria-label="Close send menu"
           className="fixed inset-0 z-20 bg-black/10"
           onClick={() => setSendMenuOpen(false)}
         />
@@ -276,10 +276,10 @@ function HomeScreen() {
         className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 flex flex-col items-end gap-2 md:bottom-6 md:right-6"
       >
         {sendMenuOpen ? (
-          <div className="flex flex-col items-end gap-2" role="menu" aria-label="Gönderim seçenekleri">
+          <div className="flex flex-col items-end gap-2" role="menu" aria-label="Send options">
             {[
               {
-                label: locale === "tr-TR" ? "Dosya Seç" : "Choose File",
+                label: "Choose File",
                 icon: FilePlus2,
                 action: () => fileInput.current?.click(),
               },
@@ -304,7 +304,7 @@ function HomeScreen() {
         ) : null}
         <button
           type="button"
-          aria-label={sendMenuOpen ? "Gönderim menüsünü kapat" : "Dosya veya fotoğraf gönder"}
+          aria-label={sendMenuOpen ? "Close send menu" : "Send a file or photo"}
           aria-expanded={sendMenuOpen}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() => setSendMenuOpen((open) => !open)}

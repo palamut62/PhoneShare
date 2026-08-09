@@ -32,7 +32,7 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
         </span>
         <h1 className="text-2xl font-semibold">{t.noDeviceTitle}</h1>
         <p className="text-sm text-muted-foreground">
-          Telefonunuzu bağlamak için QR kodu okutun.
+          Scan the QR code to connect your phone.
         </p>
       </header>
 
@@ -44,7 +44,7 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
 
       {registeredDevices.length > 0 ? (
         <Card>
-          <CardTitle>Kayıtlı telefonlar</CardTitle>
+          <CardTitle>Registered phones</CardTitle>
           <div className="mt-3 flex flex-col gap-2">
             {registeredDevices.map((device) => (
               <button
@@ -59,7 +59,7 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-foreground">{device.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {device.enabled ? "Bağlı - yönetmek için aç" : "Devre dışı"}
+                    {device.enabled ? "Connected - open to manage" : "Disabled"}
                   </span>
                 </span>
                 <ChevronRight aria-hidden className="h-5 w-5 text-muted-foreground" />
@@ -70,13 +70,13 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
       ) : null}
 
       <Card>
-        <CardTitle>NASIL ÇALIŞIR?</CardTitle>
+        <CardTitle>HOW IT WORKS</CardTitle>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           <li>
-            &quot;{t.addDevice}&quot; ile QR kodu ve 6 haneli eşleştirme kodunu oluşturun.
+            Select &quot;{t.addDevice}&quot; to generate a QR code and a six-digit pairing code.
           </li>
-          <li>Telefonunuzun kamerasıyla QR kodu okutun ya da kodu telefona elle girin.</li>
-          <li>Dosyalarınız doğrudan bu bilgisayara gelir; buluta yüklenmez.</li>
+          <li>Scan the QR code with your phone camera or enter the code manually.</li>
+          <li>Files go directly to this computer and are never uploaded to the cloud.</li>
         </ol>
       </Card>
 
@@ -87,8 +87,8 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
           </span>
           <p className="text-sm text-muted-foreground">
             {deviceName
-              ? `${deviceName} hazır. Eşleştirme kodu yalnızca bu bilgisayarda oluşturulabilir ve 5 dakika geçerlidir.`
-              : "Eşleştirme kodu yalnızca bu bilgisayarda oluşturulabilir ve 5 dakika geçerlidir."}
+              ? `${deviceName} is ready. Pairing codes can only be generated on this computer and expire in 5 minutes.`
+              : "Pairing codes can only be generated on this computer and expire in 5 minutes."}
           </p>
         </div>
       </Card>

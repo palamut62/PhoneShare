@@ -139,10 +139,9 @@ export class UploadQueue {
           status === "FAILED" && !isTerminal(stored.status)
             ? {
                 code: "unknown",
-                title: "Dosya yeniden seçilmeli",
-                message:
-                  "Sayfa yenilendiği için dosya içeriği kayboldu. Göndermek için dosyayı tekrar seçin.",
-                actionLabel: "Dosya Seç",
+                title: "File must be selected again",
+                message: "The file content was cleared after the page refreshed. Select the file again to send it.",
+                actionLabel: "Choose File",
                 action: "retry",
                 retryable: false,
               }

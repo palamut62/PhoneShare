@@ -38,7 +38,7 @@ export function TargetPicker({
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value || null)}
       >
-        <option value="">Otomatik (kurallara göre)</option>
+        <option value="">Automatic (based on rules)</option>
         {sorted.map((target) => (
           <option key={target.id} value={target.id}>
             {target.favorite ? "★ " : ""}
