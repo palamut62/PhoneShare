@@ -44,10 +44,15 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
       <div className="mx-auto w-full max-w-4xl flex-1 pb-24 md:pb-8">{children}</div>
       <nav
         aria-label="Main navigation"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur-md md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0 md:bg-surface md:backdrop-blur-none"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <ul className="mx-auto flex w-full max-w-3xl md:flex-col md:gap-1 md:p-4 md:pt-8">
+        {/* Masaustu kenar cubugunda urun kimligi; mobilde alt barda yer yok. */}
+        <div className="hidden items-center gap-2 px-4 pb-2 pt-6 md:flex">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-primary" />
+          <span className="label-tech !tracking-[0.22em] text-foreground">PhoneShare</span>
+        </div>
+        <ul className="mx-auto flex w-full max-w-3xl md:flex-col md:gap-0.5 md:p-3">
           {NAV.map(({ href, icon: Icon, key }) => {
             const current = normalizePath(pathname);
             const target = normalizePath(href);
@@ -58,12 +63,21 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium md:flex-row md:justify-start md:gap-3 md:px-3 md:text-sm",
+                    "relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-semibold tracking-tight transition-colors md:flex-row md:justify-start md:gap-3 md:px-3 md:text-sm",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active ? "text-primary md:bg-primary/10" : "text-muted-foreground",
+                    active
+                      ? "text-foreground md:bg-muted"
+                      : "text-muted-foreground hover:text-foreground md:hover:bg-muted/60",
                   )}
                 >
-                  <Icon aria-hidden className="h-5 w-5" />
+                  {/* Etkin sekme isareti: mobilde ustte, masaustunde solda ince sinyal cizgisi. */}
+                  {active ? (
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-primary md:inset-x-auto md:inset-y-1.5 md:left-0 md:h-auto md:w-0.5"
+                    />
+                  ) : null}
+                  <Icon aria-hidden className={cn("h-5 w-5", active && "text-primary")} />
                   {t[key]}
                 </Link>
               </li>

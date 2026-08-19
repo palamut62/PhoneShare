@@ -7,6 +7,7 @@ import * as React from "react";
 import { useApp } from "@/components/app-providers";
 import { StatusHeader } from "@/components/status-header";
 import { Card, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { useHealth, useReceiverEvents, useStats } from "@/hooks/use-receiver";
 import { formatBytes, formatSpeed } from "@/lib/upload/speed";
 
@@ -57,7 +58,7 @@ export default function StatsPage() {
     <>
       <StatusHeader isOnline={isOnline} isChecking={isChecking} deviceName={deviceName} title={t.stats} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="stagger-in flex flex-col gap-3 px-4 py-4">
         {/* PRD §42 — KPI kartlari: Bugun / Hafta / Ay / Toplam. */}
         <div className="grid grid-cols-2 gap-3">
           <KpiCard label={t.today} avgSpeedLabel={t.avgSpeed} period={stats?.today} isLoading={statsQuery.isLoading} locale={locale} />
@@ -101,11 +102,11 @@ function KpiCard({
 }) {
   return (
     <Card className="flex flex-col gap-0.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-2xl font-bold">{isLoading || !period ? "…" : period.files.toLocaleString(locale)}</p>
-      <p className="text-xs text-muted-foreground">{!period ? "—" : formatBytes(period.bytes, locale)}</p>
+      <p className="label-tech">{label}</p>
+      <p className="num text-3xl font-bold">{isLoading || !period ? "…" : period.files.toLocaleString(locale)}</p>
+      <p className="num text-xs text-muted-foreground">{!period ? "—" : formatBytes(period.bytes, locale)}</p>
       {period?.avg_speed != null ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="num text-xs text-muted-foreground">
           {avgSpeedLabel}: {formatSpeed(period.avg_speed, locale)}
         </p>
       ) : null}
@@ -124,13 +125,13 @@ function DailyChart({ daily, label }: { daily: StatsResponse["daily"]; label: st
             <div
               key={point.date}
               title={`${point.date}: ${point.files}`}
-              className="min-w-2 flex-1 rounded-t bg-primary"
+              className="min-w-2 flex-1 rounded-sm bg-primary"
               style={{ height: `${Math.max((point.files / maxFiles) * 100, 4)}%` }}
             />
           ) : (
             // Bos gun: ince muted cizgi.
             <div key={point.date} className="flex min-w-2 flex-1 items-end justify-center">
-              <span className="h-1.5 w-[3px] rounded-t bg-muted" />
+              <span className="h-1.5 w-[3px] rounded-sm bg-muted" />
             </div>
           ),
         )}
@@ -139,7 +140,7 @@ function DailyChart({ daily, label }: { daily: StatsResponse["daily"]; label: st
         {daily.map((point) => (
           <span
             key={point.date}
-            className="min-w-2 flex-1 truncate pt-1.5 text-center text-[10px] text-muted-foreground"
+            className="num min-w-2 flex-1 truncate pt-1.5 text-center text-[10px] text-muted-foreground"
           >
             {shortDay(point.date)}
           </span>
@@ -174,11 +175,9 @@ function DistributionCard({
         <ul className="mt-3 flex flex-col gap-3">
           {items.map((item) => (
             <li key={item.id} className="flex items-center gap-3">
-              <div aria-hidden className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${(item.files / max) * 100}%` }} />
-              </div>
+              <Progress value={(item.files / max) * 100} className="w-12 shrink-0" label={item.name} />
               <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</p>
-              <p className="shrink-0 text-xs text-muted-foreground">
+              <p className="num shrink-0 text-xs text-muted-foreground">
                 {item.files} {t.files} · {formatBytes(item.bytes, locale)}
               </p>
             </li>

@@ -33,8 +33,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f7f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1020" },
+    { media: "(prefers-color-scheme: light)", color: "#f1f0e9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0d09" },
   ],
 };
 
@@ -54,11 +54,11 @@ function show(title,detail){
   try{
     var d=document.createElement("div");
     d.id="phoneshare-crash";
-    d.setAttribute("style","position:fixed;inset:0;z-index:2147483647;overflow:auto;padding:16px;background:#0b1020;color:#e6e9f0;font:14px/1.5 -apple-system,system-ui,sans-serif;-webkit-user-select:text;user-select:text");
+    d.setAttribute("style","position:fixed;inset:0;z-index:2147483647;overflow:auto;padding:16px;background:#0b0d09;color:#e9ebe0;font:14px/1.5 -apple-system,system-ui,sans-serif;-webkit-user-select:text;user-select:text");
     var ua=navigator.userAgent;
     d.innerHTML='<h1 style="font-size:17px;margin:0 0 8px">Uygulama acilamadi</h1>'
       +'<p style="opacity:.8;margin:0 0 12px">Asagidaki bilgiyi kopyalayip iletin.</p>'
-      +'<pre style="white-space:pre-wrap;word-break:break-word;background:#151b2e;padding:12px;border-radius:8px;margin:0">'
+      +'<pre style="white-space:pre-wrap;word-break:break-word;background:#14170f;padding:12px;border-radius:8px;margin:0">'
       +[title,detail,"","UA: "+ua,"secureContext: "+window.isSecureContext,"origin: "+location.origin].join("\\n")
         .replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]})
       +'</pre>';

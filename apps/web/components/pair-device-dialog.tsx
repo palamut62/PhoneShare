@@ -167,7 +167,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             type="button"
             aria-label={t.close}
             onClick={onClose}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X aria-hidden className="h-5 w-5" />
           </button>
@@ -199,7 +199,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
           <div className="mt-3 flex flex-col gap-4">
             <div className="flex flex-col items-center gap-2">
               <p className="text-sm font-medium text-foreground">{t.pairQrTitle}</p>
-              <div className="rounded-2xl border border-border bg-white p-4">
+              <div className="rounded-lg border border-border bg-white p-4">
                 <QRCodeSVG value={activeUrl} size={220} fgColor="#000000" bgColor="#ffffff" />
               </div>
               <p className="text-center text-xs text-muted-foreground">{t.pairQrHint}</p>
@@ -208,9 +208,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             {/* Birden fazla aday varsa kullanici yolu secer (PRD §47/§48). */}
             {addresses.length > 1 ? (
               <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t.pairAddressChoose}
-                </p>
+                <p className="label-tech">{t.pairAddressChoose}</p>
                 <div role="radiogroup" aria-label={t.pairAddressChoose} className="flex flex-wrap gap-2">
                   {addresses.map((item) => {
                     const active = item.url === selected;
@@ -245,58 +243,52 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             {addresses.length > 0 && addresses.every((item) => !item.reachable_from_phone) ? (
               <p
                 role="status"
-                className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-foreground"
+                className="rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-foreground"
               >
                 {t.pairAddressNoneHint}
               </p>
             ) : null}
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t.pairCode}
-                </p>
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex w-full items-center justify-between gap-2">
+                <p className="label-tech">{t.pairCode}</p>
                 <Button variant="ghost" size="md" className="min-h-9 px-2 text-xs" onClick={() => void copy(ticket.code, "code")}>
                   {copied === "code" ? <Check aria-hidden className="h-3.5 w-3.5" /> : <Copy aria-hidden className="h-3.5 w-3.5" />}
                   {copied === "code" ? t.copied : t.copy}
                 </Button>
               </div>
-              <p className="rounded-xl border border-border bg-background px-3 py-2 text-center font-mono text-2xl tracking-widest">
+              <p className="num w-full rounded-lg border border-border bg-background px-3 py-3 text-center text-5xl tracking-[0.3em]">
                 {ticket.code}
               </p>
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t.pairAddress}
-                </p>
+                <p className="label-tech">{t.pairAddress}</p>
                 <Button variant="ghost" size="md" className="min-h-9 px-2 text-xs" onClick={() => void copy(activeUrl, "address")}>
                   {copied === "address" ? <Check aria-hidden className="h-3.5 w-3.5" /> : <Copy aria-hidden className="h-3.5 w-3.5" />}
                   {copied === "address" ? t.copied : t.copy}
                 </Button>
               </div>
-              <p className="truncate rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              <p className="num truncate rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
                 {activeUrl}
               </p>
             </div>
 
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t.stepsTitle}
-              </p>
+              <p className="label-tech">{t.stepsTitle}</p>
               <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm text-muted-foreground">
                 <li>{t.step1}</li>
                 <li>
                   {t.step2}
-                  <span className="mt-1 block break-all font-medium text-foreground">{activeUrl}</span>
+                  <span className="num mt-1 block break-all font-medium text-foreground">{activeUrl}</span>
                 </li>
                 <li>{t.step3}</li>
                 {tailscale ? (
                   <li>
                     {t.step3Tailscale}
                     {tailscale.dnsName ? (
-                      <span className="mt-1 block text-xs text-foreground">
+                      <span className="num mt-1 block text-xs text-foreground">
                         {t.tailscaleActive.replace("{dns}", tailscale.dnsName)}
                       </span>
                     ) : null}
@@ -307,7 +299,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             </div>
 
             {/* PRD §71 — teknik hata metni yerine anlasilir kontrol listesi. */}
-            <details className="rounded-xl border border-border bg-background p-3">
+            <details className="rounded-lg border border-border bg-background p-3">
               <summary className="cursor-pointer text-sm font-medium text-foreground">
                 {t.pairTroubleTitle}
               </summary>

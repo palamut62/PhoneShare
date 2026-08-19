@@ -34,7 +34,7 @@ export default function TransfersPage() {
     <>
       <StatusHeader isOnline={isOnline} isChecking={isChecking} deviceName={deviceName} title={t.transfers} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="stagger-in flex flex-col gap-3 px-4 py-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="transfer-search">{t.search}</Label>
           <div className="relative">
@@ -61,7 +61,7 @@ export default function TransfersPage() {
 
         {groups.map(([label, items]) => (
           <section key={label} aria-label={label}>
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="label-tech px-1">
               {label}
             </h2>
             <Card className="mt-2 p-0">
@@ -70,7 +70,7 @@ export default function TransfersPage() {
                   <li key={transfer.id} className="flex items-start justify-between gap-3 p-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{transfer.original_filename}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                      <p className="num mt-0.5 text-xs text-muted-foreground">
                         {formatBytes(transfer.size, locale)} · {formatDateTime(transfer.started_at, locale)}
                       </p>
                       {transfer.status === "FAILED" ? (

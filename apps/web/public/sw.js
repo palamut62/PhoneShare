@@ -7,7 +7,7 @@
  * - Surum degisince eski onbellekler silinir.
  */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL_CACHE = `phoneshare-shell-${VERSION}`;
 const ASSET_CACHE = `phoneshare-assets-${VERSION}`;
 
@@ -79,7 +79,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Hash'li statik varliklar: once onbellek, sonra ag.
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/fonts/")
+  ) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>

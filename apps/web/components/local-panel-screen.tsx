@@ -38,15 +38,15 @@ export function LocalPanelScreen({
   return (
     <main
       className={cn(
-        "mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-8",
+        "stagger-in mx-auto flex w-full max-w-md flex-col gap-3 px-4 py-6 md:max-w-3xl md:px-8",
         !embedded && "min-h-dvh",
       )}
     >
       <header className="flex flex-col items-center gap-2 pt-6 text-center">
-        <span className="rounded-[18px] bg-primary p-3 text-white">
+        <span className="rounded-lg bg-primary p-3 text-primary-foreground">
           <Smartphone aria-hidden className="h-7 w-7" />
         </span>
-        <h1 className="text-2xl font-semibold">{t.noDeviceTitle}</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">{t.noDeviceTitle}</h1>
         <p className="text-sm text-muted-foreground">
           Scan the QR code to connect your phone.
         </p>
@@ -62,7 +62,7 @@ export function LocalPanelScreen({
       {showOfflineNotice ? (
         <div
           role="status"
-          className="flex flex-col gap-3 rounded-2xl border border-danger/40 bg-danger/10 p-3"
+          className="flex flex-col gap-3 rounded-lg border border-danger/40 bg-danger/10 p-3"
         >
           <div className="flex items-start gap-2">
             <CloudOff aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
@@ -87,9 +87,9 @@ export function LocalPanelScreen({
                 key={device.id}
                 type="button"
                 onClick={() => onSelectDevice(device.id, device.name)}
-                className="flex min-h-14 items-center gap-3 rounded-xl bg-muted px-3 text-left hover:bg-border focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-h-14 items-center gap-3 rounded-md bg-muted px-3 text-left hover:bg-border focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="rounded-lg bg-primary/10 p-2 text-primary">
+                <span className="rounded-md bg-primary/10 p-2 text-primary">
                   <Smartphone aria-hidden className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -97,9 +97,10 @@ export function LocalPanelScreen({
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span
                       aria-hidden
+                      data-live={device.enabled && device.online ? "true" : "false"}
                       className={cn(
-                        "h-2 w-2 shrink-0 rounded-full",
-                        device.enabled && device.online ? "bg-success" : "bg-muted-foreground/40",
+                        "signal-dot",
+                        device.enabled && device.online ? "text-success" : "text-muted-foreground",
                       )}
                     />
                     <span className={cn(device.enabled && device.online && "text-success")}>
@@ -107,7 +108,7 @@ export function LocalPanelScreen({
                     </span>
                   </span>
                   {device.enabled && !device.online && device.last_seen ? (
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="num block text-xs text-muted-foreground">
                       Last seen {formatDateTime(device.last_seen, locale)}
                     </span>
                   ) : null}
@@ -132,7 +133,7 @@ export function LocalPanelScreen({
 
       <Card>
         <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-success/10 p-2 text-success">
+          <span className="rounded-md bg-success/10 p-2 text-success">
             <ShieldCheck aria-hidden className="h-5 w-5" />
           </span>
           <p className="text-sm text-muted-foreground">

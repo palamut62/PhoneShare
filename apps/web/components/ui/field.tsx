@@ -9,7 +9,8 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        "min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground",
+        "min-h-11 w-full rounded-md border border-border bg-elevated px-3 text-base text-foreground",
+        "transition-colors hover:border-hairline",
         "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2",
         "focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
@@ -25,7 +26,8 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     <select
       ref={ref}
       className={cn(
-        "min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base text-foreground",
+        "min-h-11 w-full rounded-md border border-border bg-elevated px-3 text-base text-foreground",
+        "transition-colors hover:border-hairline",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "focus-visible:ring-offset-background",
         className,
@@ -70,16 +72,16 @@ export function Toggle({
         aria-label={label}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full border border-border transition-colors",
+          "relative h-7 w-12 shrink-0 rounded-full border transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "focus-visible:ring-offset-background",
-          checked ? "bg-primary" : "bg-muted",
+          checked ? "border-primary bg-primary" : "border-border bg-muted",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-6" : "translate-x-0.5",
+            "absolute top-0.5 h-5 w-5 rounded-full shadow transition-transform",
+            checked ? "translate-x-6 bg-[var(--primary-foreground)]" : "translate-x-0.5 bg-surface",
           )}
         />
       </button>

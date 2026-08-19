@@ -7,21 +7,25 @@ import { cn } from "@/lib/utils";
 
 /** PRD §70 — dokunma hedefleri en az ~44px. */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold select-none " +
+  "inline-flex items-center justify-center gap-2 rounded-md font-semibold select-none " +
+    "transition-[background-color,border-color,transform] duration-150 active:translate-y-px " +
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 " +
-    "focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+    "focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/95",
-        secondary: "bg-muted text-foreground hover:bg-border",
-        ghost: "text-foreground hover:bg-muted",
-        danger: "bg-danger text-white hover:bg-danger/90",
+        // Sinyal rengi: her iki temada da ayni lime, uzerinde koyu yazi.
+        primary:
+          "bg-primary text-primary-foreground hover:brightness-[1.08] active:brightness-95 " +
+          "shadow-[0_1px_0_0_color-mix(in_srgb,var(--primary)_70%,black)]",
+        secondary: "border border-border bg-elevated text-foreground hover:border-hairline hover:bg-muted",
+        ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
+        danger: "bg-danger text-[var(--danger-foreground)] hover:brightness-110",
       },
       size: {
-        md: "min-h-11 px-4 text-sm",
-        lg: "min-h-14 px-6 text-base",
-        xl: "min-h-16 px-6 text-lg w-full",
+        md: "min-h-11 px-4 text-sm tracking-tight",
+        lg: "min-h-14 px-6 text-base tracking-tight",
+        xl: "min-h-16 w-full px-6 text-lg tracking-tight",
         icon: "h-11 w-11",
       },
     },

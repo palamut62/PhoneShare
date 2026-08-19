@@ -68,7 +68,7 @@ export default function SettingsPage() {
     <>
       <StatusHeader isOnline={isOnline} isChecking={isChecking} deviceName={deviceName} title={t.settings} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="stagger-in flex flex-col gap-3 px-4 py-4">
         <Card>
           <CardTitle>APPEARANCE</CardTitle>
           <div className="mt-3 flex flex-col gap-3">
@@ -163,7 +163,7 @@ export default function SettingsPage() {
             {t.addDevice}
           </Button>
           {confirmReset ? (
-            <div className="mt-3 rounded-xl bg-danger/10 p-3">
+            <div className="mt-3 rounded-lg bg-danger/10 p-3">
               <p className="text-sm text-foreground">
                 This device will be unpaired and will require a new code. Continue?
               </p>
@@ -307,10 +307,10 @@ function ConnectionCard() {
       ) : (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-xs text-muted-foreground">
-            {t.tailscaleDnsLabel}: <span className="font-medium text-foreground">{status.dns_name ?? "—"}</span>
+            {t.tailscaleDnsLabel}: <span className="num font-medium text-foreground">{status.dns_name ?? "—"}</span>
           </p>
           <p className="text-xs text-muted-foreground">
-            IPv4: <span className="font-medium text-foreground">{status.ipv4 ?? "—"}</span>
+            IPv4: <span className="num font-medium text-foreground">{status.ipv4 ?? "—"}</span>
           </p>
           <p className={cn("text-sm font-medium", status.remote_enabled ? "text-success" : "text-muted-foreground")}>
             {status.remote_enabled ? t.remoteActive : t.remoteInactive}
@@ -341,7 +341,7 @@ function ConnectionCard() {
             >
               <span
                 className={cn(
-                  "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-transform",
                   status.remote_enabled ? "translate-x-6" : "translate-x-0.5",
                 )}
               />
@@ -355,7 +355,7 @@ function ConnectionCard() {
           {activeUrl ? (
             <p className="text-xs text-muted-foreground">
               {t.remoteAddress}:{" "}
-              <span className="rounded-lg border border-border bg-background px-2 py-1 font-mono text-foreground">
+              <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-foreground num">
                 {activeUrl}
               </span>
             </p>
@@ -364,7 +364,7 @@ function ConnectionCard() {
           {remoteMutation.data === null ? <p className="text-sm text-danger">{t.remoteError}</p> : null}
 
           {remoteMutation.data?.message ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+            <div className="rounded-lg border border-border bg-muted p-3">
               <p className="text-sm text-foreground">{remoteMutation.data.message || t.remoteHttpsWarning}</p>
             </div>
           ) : null}
@@ -463,7 +463,7 @@ function TargetsCard() {
       {desktop ? (
         <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           Incoming files are saved into these folders. New folders must be inside the base folder:
-          <span className="rounded-lg border border-border bg-background px-2 py-1 font-mono text-foreground">
+          <span className="rounded-md border border-border bg-background px-2 py-1 font-mono text-foreground num">
             {baseFolder ?? "—"}
           </span>
         </p>
@@ -493,7 +493,7 @@ function TargetsCard() {
                   aria-label={`${target.name} show in folder`}
                   disabled={busy}
                   onClick={() => void revealInExplorer(targetPath)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <FolderOpen aria-hidden className="h-4 w-4" />
                 </button>
@@ -508,7 +508,7 @@ function TargetsCard() {
                     updateMutation.mutate({ target, patch: { favorite: !target.favorite } })
                   }
                   className={cn(
-                    "flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-colors",
+                    "flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors",
                     "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     "disabled:opacity-50",
                     target.favorite ? "text-primary" : "text-muted-foreground",
@@ -536,7 +536,7 @@ function TargetsCard() {
                 >
                   <span
                     className={cn(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-transform",
                       target.enabled ? "translate-x-6" : "translate-x-0.5",
                     )}
                   />
@@ -548,7 +548,7 @@ function TargetsCard() {
                   aria-label={`Delete ${target.name}`}
                   disabled={busy}
                   onClick={() => deleteMutation.mutate(target.id)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <Trash2 aria-hidden className="h-4 w-4" />
                 </button>
@@ -666,7 +666,7 @@ function AppsCard() {
             <li key={app.id} className="flex items-center gap-2 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{app.name}</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                <p className="num mt-0.5 truncate text-xs text-muted-foreground">
                   {app.last_launched_at
                     ? `Last launched ${formatDateTime(app.last_launched_at)}`
                     : "Never launched"}
@@ -678,7 +678,7 @@ function AppsCard() {
                   aria-label={`Delete ${app.name}`}
                   disabled={busy}
                   onClick={() => deleteMutation.mutate(app.id)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <Trash2 aria-hidden className="h-4 w-4" />
                 </button>
@@ -765,7 +765,7 @@ function PresetsCard() {
                   type="button"
                   aria-label={t.deletePreset}
                   onClick={() => removePreset(preset.id)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Trash2 aria-hidden className="h-4 w-4" />
                 </button>
@@ -984,7 +984,7 @@ function RulesCard() {
                 >
                   <span
                     className={cn(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-transform",
                       rule.enabled ? "translate-x-6" : "translate-x-0.5",
                     )}
                   />
@@ -1018,7 +1018,7 @@ function RulesCard() {
                   aria-label={t.deleteRule}
                   disabled={busy}
                   onClick={() => deleteMutation.mutate(rule.id)}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <Trash2 aria-hidden className="h-4 w-4" />
                 </button>

@@ -58,11 +58,11 @@ export function FileReview({
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             onClick={(event) => event.stopPropagation()}
-            className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-surface p-4"
+            className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-lg border border-border bg-surface p-4"
             style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 id={headingId} className="text-lg font-semibold">
+              <h2 id={headingId} className="text-2xl font-bold tracking-[-0.02em]">
                 Files to Send
               </h2>
               <Button variant="ghost" size="icon" aria-label="Close" onClick={onCancel}>
@@ -75,7 +75,7 @@ export function FileReview({
                 <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatBytes(file.size, locale)}</p>
+                    <p className="num text-xs text-muted-foreground">{formatBytes(file.size, locale)}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -89,7 +89,7 @@ export function FileReview({
               ))}
             </ul>
 
-            <p className="mt-2 text-sm font-medium">
+            <p className="num mt-2 text-sm font-medium">
               {files.length} Files · {formatBytes(total, locale)}
             </p>
 
@@ -110,7 +110,7 @@ export function FileReview({
             {!isOnline ? (
               <p
                 role="status"
-                className="mt-3 flex items-start gap-2 rounded-xl bg-danger/10 p-3 text-xs text-foreground"
+                className="mt-3 flex items-start gap-2 rounded-lg bg-danger/10 p-3 text-xs text-foreground"
               >
                 <CloudOff aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
                 The computer is offline. It must be online to receive files.
@@ -120,7 +120,7 @@ export function FileReview({
             {total > LARGE_TRANSFER_BYTES ? (
               <p
                 role="status"
-                className="mt-3 flex items-start gap-2 rounded-xl bg-muted p-3 text-xs text-foreground"
+                className="mt-3 flex items-start gap-2 rounded-lg bg-muted p-3 text-xs text-foreground"
               >
                 <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 Keep PhoneShare open until the transfer completes.

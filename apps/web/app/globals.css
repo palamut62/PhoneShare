@@ -3,46 +3,132 @@
 /* PRD §68 — System / Light / Dark. Tema `html[data-theme]` ile belirlenir. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * Yazi tipleri repoda paketlenir (`public/fonts`), CDN'den CEKILMEZ:
+ * uygulama LAN/Tailscale uzerinden, internet garantisi olmadan servis edilir.
+ * latin-ext altkumesi Turkce (ğ, ş, İ, ı) icin ZORUNLUDUR.
+ */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/archivo-var-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/archivo-var-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plex-mono-400-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plex-mono-400-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/plex-mono-600-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/plex-mono-600-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+ * "Signal" tasarim dili — PhoneShare bir ag cihazi paneli gibi gorunur:
+ * kagit/grafit yuzeyler, tek bir sinyal rengi (lime), teknik veriler icin mono.
+ * Vurgu rengi HER IKI temada aynidir; uzerindeki yazi her zaman koyudur.
+ */
 :root {
-  --background: #f2f2f7;
-  --surface: #ffffff;
-  --foreground: #1c1c1e;
-  --muted: #e9e9ee;
-  --muted-foreground: #6e6e73;
-  --border: #d1d1d6;
-  --primary: #007aff;
-  --primary-foreground: #ffffff;
-  --ring: #007aff;
-  --danger: #ff3b30;
-  --success: #34c759;
+  --background: #f1f0e9;
+  --surface: #fbfaf5;
+  --elevated: #ffffff;
+  --foreground: #14170f;
+  --muted: #e4e2d6;
+  --muted-foreground: #5f6356;
+  --border: #dcd9c9;
+  --hairline: #c9c6b4;
+  --primary: #a8d520;
+  --primary-foreground: #12150d;
+  --ring: #7fa412;
+  --danger: #c8322f;
+  --danger-foreground: #ffffff;
+  --success: #3d8f4a;
+  --grid: rgba(20, 23, 15, 0.05);
+  --shadow-card: 0 1px 2px rgba(20, 23, 15, 0.06);
+  --shadow-pop: 0 12px 32px -12px rgba(20, 23, 15, 0.28);
 }
 
 [data-theme="dark"] {
-  --background: #000000;
-  --surface: #1c1c1e;
-  --foreground: #f2f2f7;
-  --muted: #2c2c2e;
-  --muted-foreground: #98989d;
-  --border: #38383a;
-  --primary: #0a84ff;
-  --primary-foreground: #ffffff;
-  --ring: #0a84ff;
-  --danger: #ff453a;
-  --success: #30d158;
+  --background: #0b0d09;
+  --surface: #14170f;
+  --elevated: #1b1f16;
+  --foreground: #e9ebe0;
+  --muted: #1e2318;
+  --muted-foreground: #8d9382;
+  --border: #272d20;
+  --hairline: #333a2a;
+  --primary: #c3f24e;
+  --primary-foreground: #10130b;
+  --ring: #c3f24e;
+  --danger: #ff5f5a;
+  --danger-foreground: #10130b;
+  --success: #59c96d;
+  --grid: rgba(233, 235, 224, 0.045);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 16px 40px -16px rgba(0, 0, 0, 0.75);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-hairline: var(--hairline);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-ring: var(--ring);
   --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
   --color-success: var(--success);
+
+  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", "Consolas", monospace;
 }
 
 @layer base {
@@ -54,8 +140,12 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans);
+    /* Cok hafif teknik izgara — duz zemin yerine dokulu bir yuzey. */
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-attachment: fixed;
     /* iOS: notch/home indicator guvenli alanlari (viewport-fit=cover ile birlikte). */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
@@ -69,11 +159,79 @@
   textarea,
   button {
     font-size: 16px;
+    font-family: inherit;
   }
 
   :focus-visible {
     outline: none;
   }
+
+  /* Teknik veriler (IP, kod, boyut, saat) her yerde hizalanmis mono. */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Bir olcum/etiket satiri: kucuk, harf araligi acik, mono. */
+  .label-tech {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Sayisal veri: sutunlar kaysin diye tabular. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Canli baglanti noktasi; yalnizca gercekten cevrimici iken nabiz atar. */
+  .signal-dot {
+    position: relative;
+    display: inline-block;
+    height: 0.5rem;
+    width: 0.5rem;
+    border-radius: 9999px;
+    background-color: currentColor;
+  }
+  .signal-dot[data-live="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-color: currentColor;
+    animation: signal-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Sayfa acilisinda kademeli belirme; .stagger-in > * uzerinde calisir. */
+  .stagger-in > * {
+    animation: rise-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .stagger-in > *:nth-child(1) { animation-delay: 0.02s; }
+  .stagger-in > *:nth-child(2) { animation-delay: 0.07s; }
+  .stagger-in > *:nth-child(3) { animation-delay: 0.12s; }
+  .stagger-in > *:nth-child(4) { animation-delay: 0.17s; }
+  .stagger-in > *:nth-child(5) { animation-delay: 0.22s; }
+  .stagger-in > *:nth-child(n + 6) { animation-delay: 0.27s; }
+}
+
+@keyframes signal-ping {
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -82,5 +240,8 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  .signal-dot[data-live="true"]::after {
+    display: none;
   }
 }

@@ -12,7 +12,7 @@ export function Progress({
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-sm border border-border bg-muted", className)}
       role="progressbar"
       aria-valuenow={Math.round(clamped)}
       aria-valuemin={0}
@@ -20,7 +20,7 @@ export function Progress({
       aria-label={label}
     >
       <div
-        className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+        className="h-full bg-primary transition-[width] duration-300 ease-out"
         style={{ width: `${clamped}%` }}
       />
     </div>

@@ -94,11 +94,11 @@ export default function HomePage() {
     <>
       <StatusHeader isOnline={isOnline} isChecking={isChecking} deviceName={deviceName} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="stagger-in flex flex-col gap-3 px-4 py-4">
         {!isOnline && !isChecking ? (
           <div
             role="status"
-            className="flex items-start gap-2 rounded-2xl border border-danger/40 bg-danger/10 p-3"
+            className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3"
           >
             <CloudOff aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
             <p className="text-sm text-foreground">
@@ -114,7 +114,7 @@ export default function HomePage() {
         {!devicesQuery.isSuccess || deviceCount === 0 ? (
           <Card className="border-primary/40 bg-primary/5">
             <div className="flex items-start gap-3">
-              <span className="rounded-xl bg-primary/10 p-2 text-primary">
+              <span className="rounded-md bg-primary/10 p-2 text-primary">
                 <Smartphone aria-hidden className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
@@ -129,11 +129,11 @@ export default function HomePage() {
           </Card>
         ) : (
           <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span>{t.deviceCount.replace("{count}", String(deviceCount))}</span>
+            <span className="num">{t.deviceCount.replace("{count}", String(deviceCount))}</span>
             <button
               type="button"
               onClick={openPairDialog}
-              className="flex min-h-11 items-center rounded-xl px-2 font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-11 items-center rounded-md px-2 font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t.addDevice}
             </button>
@@ -157,7 +157,7 @@ export default function HomePage() {
                     // Hizli Gonder aciksa onFilesPicked zaten otomatik gonderim yapar.
                     fileInput.current?.click();
                   }}
-                  className="flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span aria-hidden>{preset.emoji}</span>
                   {preset.name}
@@ -198,7 +198,7 @@ export default function HomePage() {
                 <li key={transfer.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{transfer.original_filename}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="num text-xs text-muted-foreground">
                       {formatBytes(transfer.size, locale)} · {formatDateTime(transfer.started_at, locale)}
                     </p>
                   </div>
@@ -287,7 +287,7 @@ export default function HomePage() {
                 key={label}
                 type="button"
                 role="menuitem"
-                className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface px-4 font-semibold text-foreground shadow-lg"
+                className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-surface px-4 font-semibold text-foreground shadow-lg"
                 onClick={() => {
                   setSendMenuOpen(false);
                   action();
@@ -303,7 +303,7 @@ export default function HomePage() {
           type="button"
           aria-label={sendMenuOpen ? "Close send menu" : "Send a file or photo"}
           aria-expanded={sendMenuOpen}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           onClick={() => setSendMenuOpen((open) => !open)}
         >
           {sendMenuOpen ? <X aria-hidden className="h-6 w-6" /> : <Plus aria-hidden className="h-7 w-7" />}
@@ -364,9 +364,9 @@ function AppsCard() {
               type="button"
               disabled={launchMutation.isPending}
               onClick={() => launchMutation.mutate(app.id)}
-              className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="flex min-h-14 w-full items-center gap-3 rounded-md px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
-              <span className="rounded-xl bg-primary/10 p-2 text-primary">
+              <span className="rounded-md bg-primary/10 p-2 text-primary">
                 <Rocket aria-hidden className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">

@@ -47,12 +47,12 @@ export function QueuePanel({
       </div>
 
       {summary.total > 1 ? (
-        <div className="mt-3 rounded-xl bg-muted p-3">
-          <p className="text-sm font-medium">
+        <div className="mt-3 rounded-md bg-muted p-3">
+          <p className="num text-sm font-medium">
             {summary.total} Files · {summary.completed} / {summary.total} completed
           </p>
           <Progress className="mt-2" value={summary.percent} label="Toplam ilerleme" />
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="num mt-2 text-xs text-muted-foreground">
             {formatBytes(summary.uploadedBytes, locale)} / {formatBytes(summary.totalBytes, locale)}
           </p>
         </div>
@@ -67,12 +67,12 @@ export function QueuePanel({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, height: 0 }}
-              className="rounded-xl border border-border p-3"
+              className="rounded-md border border-border p-3"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{item.filename}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <p className="num mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     {item.status === "COMPLETED" ? (
                       <CheckCircle2 aria-hidden className="h-3.5 w-3.5 text-success" />
                     ) : item.status === "FAILED" ? (
@@ -98,7 +98,7 @@ export function QueuePanel({
               {item.status === "UPLOADING" || item.status === "VERIFYING" ? (
                 <>
                   <Progress className="mt-2" value={item.progress.percent} label={item.filename} />
-                  <p className="mt-1.5 text-xs text-muted-foreground">
+                  <p className="num mt-1.5 text-xs text-muted-foreground">
                     %{Math.round(item.progress.percent)} ·{" "}
                     {formatBytes(item.progress.uploadedBytes, locale)} /{" "}
                     {formatBytes(item.progress.totalBytes, locale)} ·{" "}
@@ -109,7 +109,7 @@ export function QueuePanel({
               ) : null}
 
               {item.error ? (
-                <div role="alert" className="mt-2 rounded-lg bg-danger/10 p-2.5">
+                <div role="alert" className="mt-2 rounded-md bg-danger/10 p-2.5">
                   <p className="text-xs font-semibold text-danger">{item.error.title}</p>
                   <p className="mt-1 text-xs text-foreground">{item.error.message}</p>
                   <Button
