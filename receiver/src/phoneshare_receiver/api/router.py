@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from .routes import (
     apps,
     devices,
+    files,
     health,
     pair,
     rules,
@@ -24,6 +25,7 @@ api_router.include_router(pair.router)
 api_router.include_router(devices.router)
 api_router.include_router(targets.router)
 api_router.include_router(apps.router)
+api_router.include_router(files.router)
 api_router.include_router(rules.router)
 api_router.include_router(uploads.router)
 api_router.include_router(transfers.router)

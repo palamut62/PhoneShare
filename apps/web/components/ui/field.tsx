@@ -49,12 +49,14 @@ export function Toggle({
   label,
   description,
   id,
+  disabled = false,
 }: {
   checked: boolean;
   onCheckedChange: (value: boolean) => void;
   label: string;
   description?: string;
   id: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
@@ -70,11 +72,12 @@ export function Toggle({
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full border transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "focus-visible:ring-offset-background",
+          "focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
           checked ? "border-primary bg-primary" : "border-border bg-muted",
         )}
       >

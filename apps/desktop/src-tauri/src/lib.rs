@@ -14,6 +14,7 @@ mod config;
 mod firewall;
 mod net;
 mod paths;
+mod proc;
 mod receiver_config;
 mod sidecar;
 mod state;

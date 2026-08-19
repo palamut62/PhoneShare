@@ -10,6 +10,7 @@ import type {
   AppCreateRequest,
   AppResponse,
   DeviceResponse,
+  FileBrowserResponse,
   HealthResponse,
   PairConfirmResponse,
   PairStartResponse,
@@ -217,4 +218,30 @@ export function buildWebSocketUrl(token: string): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const query = isSessionSentinel(token) ? "" : `?token=${encodeURIComponent(token)}`;
   return `${protocol}//${window.location.host}${API_ROUTES.ws}${query}`;
+}
+
+export function getFiles(token: string, targetId?: string, path = ""): Promise<FileBrowserResponse> {
+  const search = new URLSearchParams();
+  if (targetId) search.set("target_id", targetId);
+  if (path) search.set("path", path);
+  return request<FileBrowserResponse>(`${API_ROUTES.files}?${search.toString()}`, {
+    token,
+    cache: "no-store",
+  });
+}
+
+export async function downloadFile(token: string, targetId: string, path: string): Promise<void> {
+  const search = new URLSearchParams({ target_id: targetId, path });
+  const response = await fetch(await resolveApiUrl(`${API_ROUTES.fileDownload}?${search.toString()}`), {
+    headers: token && !isSessionSentinel(token) ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw await errorFromResponse(response);
+  const blobUrl = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = path.split("/").pop() ?? "dosya";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(blobUrl);
 }

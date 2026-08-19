@@ -1,7 +1,7 @@
 //! Baglanti algilama (PRD §47, §48): LAN IP'si ve varsa Tailscale IP / MagicDNS adi.
 
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
-use std::process::Command;
+use crate::proc::command;
 
 use serde::Serialize;
 
@@ -52,7 +52,7 @@ pub fn primary_lan_ipv4() -> Option<Ipv4Addr> {
 }
 
 fn run_tailscale(args: &[&str]) -> Option<String> {
-    let output = Command::new("tailscale").args(args).output().ok()?;
+    let output = command("tailscale").args(args).output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -82,7 +82,7 @@ pub fn collect(port: u16, tls: bool) -> AccessInfo {
 
     let status_raw = run_tailscale(&["status", "--json"]);
     let tailscale_installed = status_raw.is_some()
-        || Command::new("tailscale")
+        || command("tailscale")
             .arg("version")
             .output()
             .map(|out| out.status.success())

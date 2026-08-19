@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, History, Home, Settings } from "lucide-react";
+import { BarChart3, FolderOpen, History, Home, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -25,6 +25,7 @@ export function useOpenPairDialog(): () => void {
 // olmazsa gezinme sunucu yonlendirmesine ve tam sayfa yeniden yuklemesine duser.
 const NAV = [
   { href: "/", icon: Home, key: "home" as const },
+  { href: "/files/", icon: FolderOpen, key: "pcFiles" as const },
   { href: "/transfers/", icon: History, key: "transfers" as const },
   { href: "/stats/", icon: BarChart3, key: "stats" as const },
   { href: "/settings/", icon: Settings, key: "settings" as const },
