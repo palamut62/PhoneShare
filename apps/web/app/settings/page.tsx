@@ -1,38 +1,53 @@
 "use client";
 
 import { MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, PRODUCT_OWNER } from "@phoneshare/shared-config";
-import type { RuleCreateRequest, RuleResponse } from "@phoneshare/shared-types";
+import type { RuleCreateRequest, RuleResponse, TargetResponse } from "@phoneshare/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Github, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, Github, Plus, Star, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
-import { AppShell, useOpenPairDialog } from "@/components/app-shell";
+import { useOpenPairDialog } from "@/components/app-shell";
 import { StatusHeader } from "@/components/status-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input, Label, Select, Toggle } from "@/components/ui/field";
-import { useHealth, useRules, useTargets } from "@/hooks/use-receiver";
-import { createRule, deleteRule, removeDevice, updateRule } from "@/lib/api/client";
+import { useApps, useHealth, useReceiverSettings, useRules, useTargets } from "@/hooks/use-receiver";
+import {
+  createApp,
+  createRule,
+  createTarget,
+  deleteApp,
+  deleteRule,
+  deleteTarget,
+  removeDevice,
+  updateRule,
+  updateSettings,
+  updateTarget,
+} from "@/lib/api/client";
 import type { Dictionary } from "@/lib/i18n";
-import { getTailscaleStatus, isTauri, setRemoteAccess } from "@/lib/tauri";
+import {
+  ensureFolder,
+  forgetTargetPath,
+  getDesktopConfig,
+  getTailscaleStatus,
+  isTauri,
+  openBaseFolder,
+  pickFile,
+  pickFolder,
+  registerTargetPath,
+  revealInExplorer,
+  setRemoteAccess,
+} from "@/lib/tauri";
 import type { Language, ThemePreference } from "@/lib/storage/session";
 import { formatBytes } from "@/lib/upload/speed";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 
 const CHUNK_OPTIONS = [1, 2, 4, 8, 16, 32].map((mb) => mb * 1024 * 1024).filter(
   (value) => value >= MIN_CHUNK_SIZE && value <= MAX_CHUNK_SIZE,
 );
 
 export default function SettingsPage() {
-  return (
-    <AppShell>
-      <SettingsScreen />
-    </AppShell>
-  );
-}
-
-function SettingsScreen() {
   const { t, locale, preferences, savePreferences, session, resetSession } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
   const [confirmReset, setConfirmReset] = React.useState(false);
@@ -117,6 +132,10 @@ function SettingsScreen() {
             </p>
           </div>
         </Card>
+
+        <TargetsCard />
+
+        <AppsCard />
 
         <PresetsCard />
 
@@ -352,6 +371,334 @@ function ConnectionCard() {
 
           <p className="text-xs text-muted-foreground">{t.remoteQrNote}</p>
         </div>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * PRD §20/§93 — hedef klasorler. Gercek Windows yolu API'de donmez; yol yalnizca
+ * masaustu kabugunda (`register_target_path`) yerel olarak tutulur, bu yuzden
+ * hedef bazli "Ac" butonu yoktur — kartin altinda tek bir ana klasor kisayolu vardir.
+ */
+function TargetsCard() {
+  const { session } = useApp();
+  const token = session?.token ?? "";
+  const queryClient = useQueryClient();
+  const targetsQuery = useTargets();
+  const targets = React.useMemo(() => targetsQuery.data ?? [], [targetsQuery.data]);
+  const desktop = isTauri();
+
+  // Yerel config: ana klasor + hedef id -> gercek yol eslemesi (yalnizca masaustunde).
+  const configQuery = useQuery({
+    queryKey: ["desktop-config"],
+    queryFn: getDesktopConfig,
+    enabled: desktop,
+  });
+  const baseFolder = configQuery.data?.base_folder ?? null;
+  const targetPaths = configQuery.data?.target_paths ?? {};
+
+  const [name, setName] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+
+  const invalidateTargets = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["targets"] });
+  }, [queryClient]);
+
+  const addMutation = useMutation({
+    mutationFn: async (label: string) => {
+      // Native secici: kullanici vazgecerse sessizce cikilir.
+      const picked = await pickFolder(
+        baseFolder ? `Select a folder inside ${baseFolder}` : "Klasor secin",
+      );
+      if (!picked) return null;
+      const normalized = await ensureFolder(picked);
+      if (!normalized) throw new Error("folder");
+      const segments = normalized.split(/[\\/]/).filter(Boolean);
+      const finalName = label.trim() || segments[segments.length - 1] || "Target";
+      const created = await createTarget(token, {
+        name: finalName,
+        path: normalized,
+        favorite: false,
+        enabled: true,
+      });
+      // Yol yalnizca yerelde saklanir; "Dosyayi Ac" bu kok altini kabul eder.
+      await registerTargetPath(created.id, normalized);
+      return created;
+    },
+    onSuccess: (created) => {
+      if (created) setName("");
+      setError(null);
+      invalidateTargets();
+      // target_paths degisti; yerel config'i tazele.
+      void queryClient.invalidateQueries({ queryKey: ["desktop-config"] });
+    },
+    onError: () =>
+      setError("The folder could not be added. Choose a folder inside the base folder."),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ target, patch }: { target: TargetResponse; patch: { favorite?: boolean; enabled?: boolean } }) =>
+      updateTarget(token, target.id, patch),
+    onSuccess: () => setError(null),
+    onError: () => setError("The target could not be updated."),
+    onSettled: invalidateTargets,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await deleteTarget(token, id);
+      await forgetTargetPath(id);
+    },
+    onSuccess: () => setError(null),
+    onError: () => setError("The target could not be deleted."),
+    onSettled: invalidateTargets,
+  });
+
+  const busy = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <Card>
+      <CardTitle>TARGET FOLDERS</CardTitle>
+      {desktop ? (
+        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          Incoming files are saved into these folders. New folders must be inside the base folder:
+          <span className="rounded-lg border border-border bg-background px-2 py-1 font-mono text-foreground">
+            {baseFolder ?? "—"}
+          </span>
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Incoming files are saved into these folders on your computer.
+        </p>
+      )}
+
+      {targets.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No target folders yet.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col divide-y divide-border">
+          {targets.map((target) => {
+            const targetPath = targetPaths[target.id];
+            return (
+            <li key={target.id} className="flex items-center gap-2 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{target.name}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {target.enabled ? "Active" : "Disabled"}
+                </p>
+              </div>
+              {desktop && targetPath ? (
+                <button
+                  type="button"
+                  aria-label={`${target.name} show in folder`}
+                  disabled={busy}
+                  onClick={() => void revealInExplorer(targetPath)}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <FolderOpen aria-hidden className="h-4 w-4" />
+                </button>
+              ) : null}
+              {desktop ? (
+                <button
+                  type="button"
+                  aria-label={`${target.name} favorite`}
+                  aria-pressed={target.favorite}
+                  disabled={busy}
+                  onClick={() =>
+                    updateMutation.mutate({ target, patch: { favorite: !target.favorite } })
+                  }
+                  className={cn(
+                    "flex min-h-11 min-w-11 items-center justify-center rounded-xl transition-colors",
+                    "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "disabled:opacity-50",
+                    target.favorite ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  <Star aria-hidden className={cn("h-4 w-4", target.favorite && "fill-current")} />
+                </button>
+              ) : null}
+              {desktop ? (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={target.enabled}
+                  aria-label={target.name}
+                  disabled={busy}
+                  onClick={() =>
+                    updateMutation.mutate({ target, patch: { enabled: !target.enabled } })
+                  }
+                  className={cn(
+                    "relative h-7 w-12 shrink-0 rounded-full border border-border transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    "focus-visible:ring-offset-background disabled:opacity-50",
+                    target.enabled ? "bg-primary" : "bg-muted",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                      target.enabled ? "translate-x-6" : "translate-x-0.5",
+                    )}
+                  />
+                </button>
+              ) : null}
+              {desktop ? (
+                <button
+                  type="button"
+                  aria-label={`Delete ${target.name}`}
+                  disabled={busy}
+                  onClick={() => deleteMutation.mutate(target.id)}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <Trash2 aria-hidden className="h-4 w-4" />
+                </button>
+              ) : null}
+            </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
+
+      {desktop ? (
+        <div className="mt-3 flex flex-col gap-2">
+          <Input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Folder name (optional)"
+            aria-label="Target folder name"
+            maxLength={128}
+          />
+          <Button disabled={busy} onClick={() => addMutation.mutate(name)}>
+            <Plus aria-hidden className="h-4 w-4" />
+            Add Folder
+          </Button>
+          <Button variant="secondary" onClick={() => void openBaseFolder()}>
+            <FolderOpen aria-hidden className="h-4 w-4" />
+            Open base folder
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Target folders can only be added from the PhoneShare desktop app on your computer.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Uzaktan baslatici — kayitli masaustu uygulamalari. Gercek exe yolu API'den
+ * hicbir zaman gelmez ve burada gosterilmez. Ekleme/silme yalnizca masaustunde.
+ */
+function AppsCard() {
+  const { session } = useApp();
+  const token = session?.token ?? "";
+  const queryClient = useQueryClient();
+  const appsQuery = useApps();
+  const apps = React.useMemo(() => appsQuery.data ?? [], [appsQuery.data]);
+  const settingsQuery = useReceiverSettings();
+  const desktop = isTauri();
+  const [error, setError] = React.useState<string | null>(null);
+
+  const invalidateApps = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["apps"] });
+  }, [queryClient]);
+
+  const toggleMutation = useMutation({
+    mutationFn: (enabled: boolean) => updateSettings(token, { remote_launch_enabled: enabled }),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: () => setError("The setting could not be updated."),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const picked = await pickFile("Select an application (.exe) or shortcut (.lnk)");
+      if (!picked) return null;
+      const segments = picked.split(/[\\/]/).filter(Boolean);
+      const fileName = segments[segments.length - 1] ?? "App";
+      const name = fileName.replace(/\.(exe|lnk)$/i, "");
+      return createApp(token, { name, exe_path: picked });
+    },
+    onSuccess: (created) => {
+      if (!created) return;
+      setError(null);
+      invalidateApps();
+    },
+    onError: () => setError("The app could not be added. Only .exe or .lnk (shortcut) files can be selected."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteApp(token, id),
+    onSuccess: () => setError(null),
+    onError: () => setError("The app could not be deleted."),
+    onSettled: invalidateApps,
+  });
+
+  const busy = addMutation.isPending || deleteMutation.isPending || toggleMutation.isPending;
+  const remoteLaunchEnabled = settingsQuery.data?.remote_launch_enabled ?? false;
+
+  return (
+    <Card>
+      <CardTitle>REMOTE LAUNCH</CardTitle>
+
+      {desktop ? (
+        <div className="mt-2 divide-y divide-border">
+          <Toggle
+            id="remote-launch"
+            checked={remoteLaunchEnabled}
+            onCheckedChange={(value) => toggleMutation.mutate(value)}
+            label="Allow remote launch"
+            description="When enabled, paired phones can start the apps listed below."
+          />
+        </div>
+      ) : null}
+
+      {apps.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No apps added yet.</p>
+      ) : (
+        <ul className="mt-2 flex flex-col divide-y divide-border">
+          {apps.map((app) => (
+            <li key={app.id} className="flex items-center gap-2 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{app.name}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {app.last_launched_at
+                    ? `Last launched ${formatDateTime(app.last_launched_at)}`
+                    : "Never launched"}
+                </p>
+              </div>
+              {desktop ? (
+                <button
+                  type="button"
+                  aria-label={`Delete ${app.name}`}
+                  disabled={busy}
+                  onClick={() => deleteMutation.mutate(app.id)}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <Trash2 aria-hidden className="h-4 w-4" />
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
+
+      {desktop ? (
+        <Button disabled={busy} className="mt-3" onClick={() => addMutation.mutate()}>
+          <Plus aria-hidden className="h-4 w-4" />
+          Add app
+        </Button>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Apps can only be added from the PhoneShare desktop app on your computer.
+        </p>
       )}
     </Card>
   );

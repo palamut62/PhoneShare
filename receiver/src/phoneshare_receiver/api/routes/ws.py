@@ -38,7 +38,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=""
         return
 
     await websocket.accept()
-    await state.hub.connect(websocket)
+    await state.hub.connect(websocket, device.id if device else None)
     try:
         await websocket.send_json(
             {"event": "receiver.online", "data": {"version": __version__}}

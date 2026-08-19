@@ -21,16 +21,63 @@ export function useOpenPairDialog(): () => void {
   return React.useContext(PairDialogContext);
 }
 
+// `next.config.mjs` -> `trailingSlash: true`. Href'ler bu bicimle birebir ayni
+// olmazsa gezinme sunucu yonlendirmesine ve tam sayfa yeniden yuklemesine duser.
 const NAV = [
   { href: "/", icon: Home, key: "home" as const },
-  { href: "/transfers", icon: History, key: "transfers" as const },
-  { href: "/stats", icon: BarChart3, key: "stats" as const },
-  { href: "/settings", icon: Settings, key: "settings" as const },
+  { href: "/transfers/", icon: History, key: "transfers" as const },
+  { href: "/stats/", icon: BarChart3, key: "stats" as const },
+  { href: "/settings/", icon: Settings, key: "settings" as const },
 ];
+
+/** "/transfers" ve "/transfers/" ayni sekmedir. */
+function normalizePath(path: string): string {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+
+/** Nav + yerlesim sarmalayicisi; hem "app" hem "local-panel" dallari kullanir. */
+function ShellChrome({ children }: { children: React.ReactNode }) {
+  const { t } = useApp();
+  const pathname = usePathname();
+  return (
+    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col md:max-w-none md:pl-56">
+      <div className="mx-auto w-full max-w-4xl flex-1 pb-24 md:pb-8">{children}</div>
+      <nav
+        aria-label="Main navigation"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <ul className="mx-auto flex w-full max-w-3xl md:flex-col md:gap-1 md:p-4 md:pt-8">
+          {NAV.map(({ href, icon: Icon, key }) => {
+            const current = normalizePath(pathname);
+            const target = normalizePath(href);
+            const active = target === "/" ? current === "/" : current.startsWith(target);
+            return (
+              <li key={href} className="flex-1 md:flex-none">
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium md:flex-row md:justify-start md:gap-3 md:px-3 md:text-sm",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active ? "text-primary md:bg-primary/10" : "text-muted-foreground",
+                  )}
+                >
+                  <Icon aria-hidden className="h-5 w-5" />
+                  {t[key]}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+  );
+}
 
 /** Eslesmemis cihaz once eslestirme ekranini gorur (PRD §12). */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, session, t, enterDesktopSession } = useApp();
+  const { ready, session, enterDesktopSession } = useApp();
   const { isLocalClient, isChecking, deviceName } = useHealth();
   const pathname = usePathname();
   const [pairOpen, setPairOpen] = React.useState(false);
@@ -67,15 +114,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // PC'nin kendi paneli: telefon degil, kod URETIR (PRD §12).
+  // PC'nin kendi paneli: telefon degil, kod URETIR (PRD §12). Kabuk render edilir ki
+  // eslesme oncesinde de Transfers/Stats/Settings sekmelerine gecilebilsin (loopback erisimi).
   if (view === "local-panel") {
+    const atRoot = normalizePath(pathname) === "/";
     return (
       <PairDialogContext.Provider value={openPair}>
-        <LocalPanelScreen
-          onAddDevice={openPair}
-          onSelectDevice={enterDesktopSession}
-          deviceName={deviceName}
-        />
+        <ShellChrome>
+          {atRoot ? (
+            <LocalPanelScreen
+              embedded
+              onAddDevice={openPair}
+              onSelectDevice={enterDesktopSession}
+              deviceName={deviceName}
+            />
+          ) : (
+            children
+          )}
+        </ShellChrome>
         <PairDeviceDialog open={pairOpen} onClose={() => setPairOpen(false)} />
       </PairDialogContext.Provider>
     );
@@ -92,37 +148,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PairDialogContext.Provider value={openPair}>
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col md:max-w-none md:pl-56">
-      <div className="mx-auto w-full max-w-4xl flex-1 pb-24 md:pb-8">{children}</div>
-      <nav
-        aria-label="Main navigation"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface md:inset-y-0 md:left-0 md:right-auto md:w-56 md:border-r md:border-t-0"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        <ul className="mx-auto flex w-full max-w-3xl md:flex-col md:gap-1 md:p-4 md:pt-8">
-          {NAV.map(({ href, icon: Icon, key }) => {
-            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            return (
-              <li key={href} className="flex-1 md:flex-none">
-                <Link
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium md:flex-row md:justify-start md:gap-3 md:px-3 md:text-sm",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active ? "text-primary md:bg-primary/10" : "text-muted-foreground",
-                  )}
-                >
-                  <Icon aria-hidden className="h-5 w-5" />
-                  {t[key]}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <ShellChrome>{children}</ShellChrome>
       <PairDeviceDialog open={pairOpen} onClose={() => setPairOpen(false)} />
-    </div>
     </PairDialogContext.Provider>
   );
 }

@@ -85,6 +85,8 @@ class DeviceResponse(BaseModel):
     created_at: datetime
     last_seen: datetime | None = None
     enabled: bool
+    # WebSocket ile su an bagli mi (PRD §46) — kalici bir alan degildir.
+    online: bool = False
 
 
 # --------------------------------------------------------------------- #
@@ -116,6 +118,25 @@ class TargetUpdateRequest(ApiModel):
     icon: str | None = Field(default=None, max_length=64)
     favorite: bool | None = None
     enabled: bool | None = None
+
+
+# --------------------------------------------------------------------- #
+# Apps (uzaktan baslatici) — gercek exe yolu PWA'ya gonderilmez.         #
+# --------------------------------------------------------------------- #
+
+
+class AppResponse(BaseModel):
+    id: str
+    name: str
+    created_at: datetime
+    enabled: bool
+    last_launched_at: datetime | None = None
+
+
+class AppCreateRequest(ApiModel):
+    name: str = Field(min_length=1, max_length=128)
+    exe_path: str = Field(min_length=1, max_length=1024)
+    args: str | None = Field(default=None, max_length=1024)
 
 
 # --------------------------------------------------------------------- #
@@ -262,6 +283,8 @@ class SettingsResponse(BaseModel):
     #: MVP DISI (PRD §76-78) — varsayilan kapali.
     ai_enabled: bool
     notify_enabled: bool
+    #: Uzaktan uygulama baslatma (PRD apps) — varsayilan kapali, yalnizca PC panelinden acilir.
+    remote_launch_enabled: bool
 
 
 class SettingsUpdateRequest(ApiModel):
@@ -275,6 +298,7 @@ class SettingsUpdateRequest(ApiModel):
     telemetry_enabled: bool | None = None
     ai_enabled: bool | None = None
     notify_enabled: bool | None = None
+    remote_launch_enabled: bool | None = None
 
 
 # --------------------------------------------------------------------- #

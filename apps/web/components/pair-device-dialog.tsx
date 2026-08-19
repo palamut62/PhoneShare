@@ -18,7 +18,12 @@ import { applyAddressOverride, preferredAddress } from "@/lib/pair-address";
 import { getPairAddress, getTailscaleStatus, isTauri, type PairAddress } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
 
-type DialogStatus = "loading" | "ready" | "error";
+type DialogStatus = "loading" | "waiting" | "ready" | "error";
+
+// Bilgisayar servisi acilistan sonra hazir olana kadar ~12-45sn surebilir; bu sure
+// icinde otomatik yeniden deneme yapilir (2sn araliklarla, en fazla 15 deneme = ~30sn).
+const RETRY_INTERVAL_MS = 2000;
+const MAX_RETRY_ATTEMPTS = 15;
 
 /** Panoya kopyala; clipboard API yoksa gizli textarea ile fallback dener. */
 async function copyText(text: string): Promise<boolean> {
@@ -58,14 +63,17 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
   const [tailscale, setTailscale] = React.useState<{ dnsName: string | null } | null>(null);
   const [copied, setCopied] = React.useState<"code" | "address" | null>(null);
   const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
-    setStatus("loading");
+    setStatus((prev) => (prev === "waiting" ? "waiting" : "loading"));
     setCopied(null);
     try {
       const [freshTicket, address] = await Promise.all([startPairing(), getPairAddress()]);
       const parsed = qrPayloadSchema.safeParse(JSON.parse(freshTicket.qr_payload));
       if (!parsed.success) throw new Error("gecersiz qr icerik");
+      attemptRef.current = 0;
       setTicket(freshTicket);
       setPayload(parsed.data);
       setOverride(address);
@@ -73,17 +81,38 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
       setSelected(preferredAddress(freshTicket.addresses)?.url ?? null);
       setStatus("ready");
     } catch {
-      setStatus("error");
+      // Uygulama acilistan sonra bilgisayardaki servis hazir olana kadar bekleme suresi
+      // olabilir (~12-45sn); bu yuzden dogrudan hataya dusmeden sessizce yeniden dene.
+      attemptRef.current += 1;
+      if (attemptRef.current < MAX_RETRY_ATTEMPTS) {
+        setStatus("waiting");
+        retryTimerRef.current = setTimeout(() => void load(), RETRY_INTERVAL_MS);
+      } else {
+        setStatus("error");
+      }
     }
   }, []);
 
+  const retry = React.useCallback(() => {
+    attemptRef.current = 0;
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    void load();
+  }, [load]);
+
   React.useEffect(() => {
-    if (open) void load();
+    if (open) {
+      attemptRef.current = 0;
+      void load();
+    }
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
   }, [open, load]);
 
   React.useEffect(() => {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -149,10 +178,20 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             <Loader2 aria-hidden className="h-7 w-7 animate-spin" />
             <p className="text-sm">{t.checking}</p>
           </div>
+        ) : status === "waiting" ? (
+          <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 aria-hidden className="h-7 w-7 animate-spin" />
+            <p className="text-sm">{t.checking}</p>
+            <p className="text-center text-xs">
+              Starting the computer service, this can take a few seconds.
+            </p>
+          </div>
         ) : status === "error" ? (
           <div className="flex min-h-64 flex-col items-center justify-center gap-3">
-            <p className="text-sm text-danger">{t.pairError}</p>
-            <Button variant="secondary" onClick={() => void load()}>
+            <p className="text-center text-sm text-danger">
+              Could not reach the PhoneShare service on your computer. Please try again.
+            </p>
+            <Button variant="secondary" onClick={retry}>
               {t.retry}
             </Button>
           </div>
@@ -280,7 +319,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
               </ul>
             </details>
 
-            <Button variant="ghost" className="self-end text-sm" onClick={() => void load()}>
+            <Button variant="ghost" className="self-end text-sm" onClick={retry}>
               {t.refreshCode}
             </Button>
           </div>

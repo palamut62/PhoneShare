@@ -95,6 +95,8 @@ export const deviceResponseSchema = z.object({
   created_at: isoDateSchema,
   last_seen: isoDateSchema.nullable().optional(),
   enabled: z.boolean(),
+  /** WS ile su an bagli mi; eski receiver surumlerinde alan yoktur. */
+  online: z.boolean().default(false),
 });
 
 /* ----------------------------- targets ----------------------------- */
@@ -119,6 +121,23 @@ export const targetCreateRequestSchema = z.object({
 });
 
 export const targetUpdateRequestSchema = targetCreateRequestSchema.partial();
+
+/* ------------------------------- apps -------------------------------- */
+/* Gercek exe yolu yanitlarda YOKTUR — uzaktan baslatici.                */
+
+export const appResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  created_at: isoDateSchema,
+  enabled: z.boolean(),
+  last_launched_at: isoDateSchema.nullable().optional(),
+});
+
+export const appCreateRequestSchema = z.object({
+  name: z.string().min(1),
+  exe_path: z.string().min(1),
+  args: z.string().nullable().optional(),
+});
 
 /* ----------------------------- uploads ----------------------------- */
 
@@ -242,6 +261,8 @@ export const settingsResponseSchema = z.object({
   ai_enabled: z.boolean(),
   /** MVP DISI (PRD §76-78) — varsayilan kapali. */
   notify_enabled: z.boolean(),
+  /** Uzaktan uygulama baslatma — varsayilan kapali, yalnizca PC panelinden acilir. */
+  remote_launch_enabled: z.boolean(),
 });
 
 export const settingsUpdateRequestSchema = settingsResponseSchema.partial();
@@ -322,6 +343,8 @@ export type DeviceResponse = z.infer<typeof deviceResponseSchema>;
 export type TargetResponse = z.infer<typeof targetResponseSchema>;
 export type TargetCreateRequest = z.infer<typeof targetCreateRequestSchema>;
 export type TargetUpdateRequest = z.infer<typeof targetUpdateRequestSchema>;
+export type AppResponse = z.infer<typeof appResponseSchema>;
+export type AppCreateRequest = z.infer<typeof appCreateRequestSchema>;
 export type UploadInitRequest = z.infer<typeof uploadInitRequestSchema>;
 export type UploadInitResponse = z.infer<typeof uploadInitResponseSchema>;
 export type ChunkResponse = z.infer<typeof chunkResponseSchema>;
@@ -346,6 +369,9 @@ export const API_ROUTES = {
   device: (id: string) => `/api/devices/${encodeURIComponent(id)}`,
   targets: "/api/targets",
   target: (id: string) => `/api/targets/${encodeURIComponent(id)}`,
+  apps: "/api/apps",
+  app: (id: string) => `/api/apps/${encodeURIComponent(id)}`,
+  appLaunch: (id: string) => `/api/apps/${encodeURIComponent(id)}/launch`,
   uploadInit: "/api/uploads/init",
   uploadChunk: (id: string) => `/api/uploads/${encodeURIComponent(id)}/chunk`,
   uploadComplete: (id: string) => `/api/uploads/${encodeURIComponent(id)}/complete`,

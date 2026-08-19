@@ -57,6 +57,24 @@ class Target(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class App(Base):
+    """Kayitli masaustu uygulamasi (uzaktan baslatici). PWA yalnizca `id` gorur,
+    gercek exe yolu API yanitlarinda ASLA yer almaz (PRD §93 ile ayni prensip)."""
+
+    __tablename__ = "apps"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    exe_path: Mapped[str] = mapped_column(String(1024))
+    args: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_launched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Transfer(Base):
     """Transfer gecmisi (PRD §64/§37)."""
 

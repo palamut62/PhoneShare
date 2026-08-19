@@ -58,6 +58,24 @@ def find_web_dist(explicit: str | None = None) -> Path | None:
     return None
 
 
+def _is_rsc_request(request: Request) -> bool:
+    """Next App Router'in istemci tarafi gezinme (RSC payload) istegi mi?
+
+    Bu isteklere index.html donmek olumcul: Next cevabi gecersiz sayar ve
+    `window.location` ile TAM SAYFA yeniden yuklemesi yapar. Masaustunde bu,
+    her sekme tiklamasinda kabugun sifirdan mount edilmesi demektir.
+    """
+    return request.headers.get("rsc") == "1" or "_rsc" in request.query_params
+
+
+def _rsc_payload(candidate: Path) -> Path | None:
+    """Static export'un urettigi RSC payload dosyasi (`.txt`)."""
+    for path in (candidate / "index.txt", candidate.with_suffix(".txt")):
+        if path.is_file():
+            return path
+    return None
+
+
 def _cache_headers(name: str, path: Path) -> dict[str, str]:
     if name in NO_CACHE_FILES or path.suffix == ".webmanifest":
         return {"Cache-Control": NO_CACHE}
@@ -72,8 +90,9 @@ def build_spa_router(dist: Path | None) -> APIRouter:
     router = APIRouter(include_in_schema=False)
 
     @router.get("/{full_path:path}")
-    async def serve(full_path: str, request: Request) -> Response:  # noqa: ARG001
+    async def serve(full_path: str, request: Request) -> Response:
         relative = full_path.strip("/")
+        wants_rsc = _is_rsc_request(request)
         # Bilinmeyen API yollari ASLA index.html'e dusmez; JSON 404 doner.
         if relative == "api" or relative.startswith("api/"):
             return JSONResponse(
@@ -86,6 +105,14 @@ def build_spa_router(dist: Path | None) -> APIRouter:
             candidate = (dist / relative).resolve()
             # Path traversal korumasi: cikti dizininin disina cikilamaz.
             if dist.resolve() in candidate.parents or candidate == dist.resolve():
+                if wants_rsc:
+                    payload = _rsc_payload(candidate)
+                    if payload is not None:
+                        return FileResponse(
+                            payload,
+                            media_type="text/x-component",
+                            headers={"Cache-Control": NO_CACHE, "Vary": "RSC"},
+                        )
                 if candidate.is_file():
                     media = mimetypes.guess_type(candidate.name)[0]
                     if candidate.suffix == ".webmanifest":
@@ -106,6 +133,15 @@ def build_spa_router(dist: Path | None) -> APIRouter:
                     return FileResponse(
                         html, media_type="text/html", headers={"Cache-Control": NO_CACHE}
                     )
+
+        if wants_rsc:
+            root_payload = _rsc_payload(dist)
+            if root_payload is not None:
+                return FileResponse(
+                    root_payload,
+                    media_type="text/x-component",
+                    headers={"Cache-Control": NO_CACHE, "Vary": "RSC"},
+                )
 
         index = dist / "index.html"
         if index.is_file():

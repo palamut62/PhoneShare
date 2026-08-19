@@ -1,11 +1,12 @@
 "use client";
 
-import { Camera, CloudOff, FilePlus2, ImageUp, Plus, Smartphone, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Camera, CloudOff, FilePlus2, ImageUp, Plus, Rocket, Smartphone, X } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
-import { AppShell, useOpenPairDialog } from "@/components/app-shell";
+import { useOpenPairDialog } from "@/components/app-shell";
 import { FileReview } from "@/components/file-review";
 import { InstallGuide } from "@/components/install-guide";
 import { QueuePanel } from "@/components/queue-panel";
@@ -14,6 +15,7 @@ import { TargetPicker } from "@/components/target-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import {
+  useApps,
   useDevices,
   useHealth,
   useReceiverEvents,
@@ -22,18 +24,11 @@ import {
   useTransfers,
 } from "@/hooks/use-receiver";
 import { useUploadQueue } from "@/hooks/use-upload-queue";
+import { launchApp } from "@/lib/api/client";
 import { formatBytes } from "@/lib/upload/speed";
 import { formatDateTime } from "@/lib/utils";
 
 export default function HomePage() {
-  return (
-    <AppShell>
-      <HomeScreen />
-    </AppShell>
-  );
-}
-
-function HomeScreen() {
   const { t, locale, preferences, savePreferences } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
   useReceiverEvents();
@@ -147,6 +142,8 @@ function HomeScreen() {
 
         <InstallGuide />
 
+        <AppsCard />
+
         {/* PRD §74 — hizli gonderim presetleri; tiklayinca hedef atanir ve dosya secici acilir. */}
         {preferences.presets.length > 0 ? (
           <div aria-label={t.presets} className="-mx-4 overflow-x-auto px-4 pb-1">
@@ -224,7 +221,7 @@ function HomeScreen() {
             <p className="mt-2 text-sm text-muted-foreground">{t.noTransfers}</p>
           )}
           <Link
-            href="/transfers"
+            href="/transfers/"
             className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             View all →
@@ -329,5 +326,61 @@ function HomeScreen() {
         locale={locale}
       />
     </>
+  );
+}
+
+/** Uzaktan baslatici — telefon tarafi. Liste bossa hicbir sey render etmez. */
+function AppsCard() {
+  const { session } = useApp();
+  const appsQuery = useApps();
+  const apps = appsQuery.data ?? [];
+  const [status, setStatus] = React.useState<Record<string, "started" | "error">>({});
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const launchMutation = useMutation({
+    mutationFn: (appId: string) => launchApp(session?.token ?? "", appId),
+    onMutate: () => {
+      setErrorMessage(null);
+    },
+    onSuccess: (_result, appId) => {
+      setStatus((current) => ({ ...current, [appId]: "started" }));
+    },
+    onError: (error: unknown, appId) => {
+      setStatus((current) => ({ ...current, [appId]: "error" }));
+      setErrorMessage(error instanceof Error ? error.message : "The app could not be started.");
+    },
+  });
+
+  if (apps.length === 0) return null;
+
+  return (
+    <Card>
+      <CardTitle>Apps</CardTitle>
+      {errorMessage ? <p className="mt-2 text-sm text-danger">{errorMessage}</p> : null}
+      <ul className="mt-2 flex flex-col divide-y divide-border">
+        {apps.map((app) => (
+          <li key={app.id} className="py-1">
+            <button
+              type="button"
+              disabled={launchMutation.isPending}
+              onClick={() => launchMutation.mutate(app.id)}
+              className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <span className="rounded-xl bg-primary/10 p-2 text-primary">
+                <Rocket aria-hidden className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{app.name}</span>
+                {status[app.id] === "started" ? (
+                  <span className="block text-xs text-success">Started</span>
+                ) : status[app.id] === "error" ? (
+                  <span className="block text-xs text-danger">Could not start</span>
+                ) : null}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

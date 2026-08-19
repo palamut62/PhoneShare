@@ -7,13 +7,14 @@
  * - Surum degisince eski onbellekler silinir.
  */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = `phoneshare-shell-${VERSION}`;
 const ASSET_CACHE = `phoneshare-assets-${VERSION}`;
 
 const SHELL_URLS = [
   "/",
   "/transfers/",
+  "/stats/",
   "/settings/",
   "/manifest.webmanifest",
   "/icons/icon-192.png",

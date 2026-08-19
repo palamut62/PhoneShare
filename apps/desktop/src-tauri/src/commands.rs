@@ -262,6 +262,20 @@ pub fn pick_folder(app: AppHandle, title: Option<String>) -> Option<String> {
 }
 
 #[tauri::command]
+pub fn pick_file(app: AppHandle, title: Option<String>) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title(title.unwrap_or_else(|| "Dosya secin".to_string()))
+        .add_filter("Uygulama veya kisayol", &["exe", "lnk"]);
+    dialog
+        .blocking_pick_file()
+        .and_then(|file| file.into_path().ok())
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn ensure_folder(path: String) -> Result<String, String> {
     let normalized = paths::normalize(&path).map_err(|err| err.message().to_string())?;
     fs::create_dir_all(&normalized).map_err(|_| "Klasor olusturulamadi.".to_string())?;

@@ -55,6 +55,26 @@ export function getReceiverOrigin(): Promise<string | null> {
   return receiverOriginPromise;
 }
 
+/** Masaustu kabugunun public config'i (`get_config` komutu). */
+export interface PublicConfig {
+  setup_completed: boolean;
+  base_folder: string | null;
+  base_url: string;
+  receiver_host: string;
+  receiver_port: number;
+  receiver_tls: boolean;
+  autostart: boolean;
+  minimize_to_tray: boolean;
+  theme: string;
+  has_token: boolean;
+  /** Hedef id -> gercek Windows yolu (PRD §93: yalnizca yerelde tutulur). */
+  target_paths: Record<string, string>;
+}
+
+export function getDesktopConfig(): Promise<PublicConfig | null> {
+  return invokeTauri<PublicConfig>("get_config");
+}
+
 /** Panel: receiver adresi uzak (Tailscale) moddaysa scheme + host doner. */
 export function getPairAddress(): Promise<PairAddress | null> {
   return invokeTauri<PairAddress>("get_pair_address");
@@ -93,4 +113,54 @@ export interface TailscaleRemoteState {
 /** Uzaktan erisimi acar/kapar. Komut hata verirse (Err) `null` doner. */
 export function setRemoteAccess(enabled: boolean): Promise<TailscaleRemoteState | null> {
   return invokeTauri<TailscaleRemoteState>("set_remote_access", { enabled });
+}
+
+/* ------------------------------ hedef klasorler ------------------------------ */
+
+/** Native klasor secici. Kullanici vazgecerse veya Tauri yoksa `null` doner. */
+export function pickFolder(title?: string): Promise<string | null> {
+  return invokeTauri<string>("pick_folder", { title: title ?? null });
+}
+
+/** Native dosya secici (.exe / .lnk filtresiyle). Kullanici vazgecerse veya Tauri yoksa `null` doner. */
+export function pickFile(title?: string): Promise<string | null> {
+  return invokeTauri<string>("pick_file", { title: title ?? null });
+}
+
+/** Yolu normalize eder ve klasoru olusturur; normalize edilmis yolu doner. */
+export function ensureFolder(path: string): Promise<string | null> {
+  return invokeTauri<string>("ensure_folder", { path });
+}
+
+/**
+ * Hedef id -> gercek yol eslemesini yerelde saklar (PRD §93: yol API'ye gitmez).
+ * Basarisizsa `null` doner.
+ */
+export function registerTargetPath(targetId: string, path: string): Promise<null | void> {
+  return invokeTauri<void>("register_target_path", { targetId, path });
+}
+
+/** Hedef silindiginde yerel yol eslemesini kaldirir. */
+export function forgetTargetPath(targetId: string): Promise<null | void> {
+  return invokeTauri<void>("forget_target_path", { targetId });
+}
+
+/** PRD §40 — yalnizca izinli koklerin altindaki yollari acar. */
+export function openPath(path: string): Promise<null | void> {
+  return invokeTauri<void>("open_path", { path });
+}
+
+/** PRD §40 — "Klasorde Goster". */
+export function revealInExplorer(path: string): Promise<null | void> {
+  return invokeTauri<void>("reveal_in_explorer", { path });
+}
+
+/** Ana klasoru Windows Gezgini'nde acar. */
+export function openBaseFolder(): Promise<null | void> {
+  return invokeTauri<void>("open_base_folder");
+}
+
+/** Kurulumda onerilen ana klasor yolu. */
+export function defaultBaseFolder(): Promise<string | null> {
+  return invokeTauri<string>("default_base_folder");
 }

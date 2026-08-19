@@ -5,21 +5,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
-import { AppShell } from "@/components/app-shell";
 import { StatusHeader } from "@/components/status-header";
 import { Card, CardTitle } from "@/components/ui/card";
 import { useHealth, useReceiverEvents, useStats } from "@/hooks/use-receiver";
 import { formatBytes, formatSpeed } from "@/lib/upload/speed";
 
 export default function StatsPage() {
-  return (
-    <AppShell>
-      <StatsScreen />
-    </AppShell>
-  );
-}
-
-function StatsScreen() {
   const { t, locale } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
   const queryClient = useQueryClient();

@@ -91,6 +91,8 @@ class ReceiverConfig:
     telemetry_enabled: bool = False
     # PRD §73 — son kullanilan hedefi hatirla.
     remember_last_target: bool = True
+    # Uzaktan uygulama baslatma (PWA -> PC). Varsayilan KAPALI; acikca acilmadan calismaz.
+    remote_launch_enabled: bool = False
 
     # ------------------------------------------------------------------ #
     # MVP DISI (PRD §76-78). Varsayilan KAPALI; MVP tamamlanmadan         #

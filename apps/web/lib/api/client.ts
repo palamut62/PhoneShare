@@ -7,6 +7,8 @@
 
 import { API_ROUTES } from "@phoneshare/shared-types";
 import type {
+  AppCreateRequest,
+  AppResponse,
   DeviceResponse,
   HealthResponse,
   PairConfirmResponse,
@@ -18,7 +20,9 @@ import type {
   SettingsUpdateRequest,
   SessionResponse,
   StatsResponse,
+  TargetCreateRequest,
   TargetResponse,
+  TargetUpdateRequest,
   TransferListResponse,
 } from "@phoneshare/shared-types";
 
@@ -82,6 +86,55 @@ export function getCurrentSession(): Promise<SessionResponse> {
 /** PRD §20/§93 — yalnizca sanal hedefler; gercek Windows yolu donmez. */
 export function getTargets(token: string): Promise<TargetResponse[]> {
   return request<TargetResponse[]>(API_ROUTES.targets, { token, cache: "no-store" });
+}
+
+/** PRD §20 — yeni hedef klasor. `path` yalnizca izinli koklerin altinda olabilir. */
+export function createTarget(
+  token: string,
+  payload: TargetCreateRequest,
+): Promise<TargetResponse> {
+  return request<TargetResponse>(API_ROUTES.targets, {
+    token,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateTarget(
+  token: string,
+  id: string,
+  payload: TargetUpdateRequest,
+): Promise<TargetResponse> {
+  return request<TargetResponse>(API_ROUTES.target(id), {
+    token,
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTarget(token: string, id: string): Promise<void> {
+  return request<void>(API_ROUTES.target(id), { token, method: "DELETE" });
+}
+
+/** Uzaktan baslatici — gercek exe yolu donmez. */
+export function listApps(token: string): Promise<AppResponse[]> {
+  return request<AppResponse[]>(API_ROUTES.apps, { token, cache: "no-store" });
+}
+
+export function createApp(token: string, payload: AppCreateRequest): Promise<AppResponse> {
+  return request<AppResponse>(API_ROUTES.apps, {
+    token,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteApp(token: string, id: string): Promise<void> {
+  return request<void>(API_ROUTES.app(id), { token, method: "DELETE" });
+}
+
+export function launchApp(token: string, id: string): Promise<AppResponse> {
+  return request<AppResponse>(API_ROUTES.appLaunch(id), { token, method: "POST" });
 }
 
 export function getTransfers(

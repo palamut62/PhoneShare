@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .base import Base, utcnow
 from .tables import (
+    App,
     AuditLog,
     Device,
     PairingSession,
@@ -16,6 +17,7 @@ from .tables import (
 )
 
 __all__ = [
+    "App",
     "AuditLog",
     "Base",
     "Device",

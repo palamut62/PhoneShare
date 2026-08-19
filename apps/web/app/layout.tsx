@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { AppProviders } from "@/components/app-providers";
+import { AppShell } from "@/components/app-shell";
 import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 
 import "./globals.css";
@@ -90,7 +91,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
       <body className="min-h-dvh antialiased">
-        <AppProviders>{children}</AppProviders>
+        {/* Kabuk (navigasyon + eslestirme kapisi) TEK yerde durur: sekme
+            gecisinde yeniden mount edilmez, durum ve sorgu onbellegi korunur. */}
+        <AppProviders>
+          <AppShell>{children}</AppShell>
+        </AppProviders>
         <ServiceWorkerRegistrar />
       </body>
     </html>

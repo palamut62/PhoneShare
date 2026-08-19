@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.config import sanitize_config, save_config
+from ...core.errors import ForbiddenError
 from ...core.state import ReceiverState
 from ...models import Device
 from ...schemas import SettingsResponse, SettingsUpdateRequest
@@ -30,6 +31,7 @@ _FIELDS = (
     "telemetry_enabled",
     "ai_enabled",
     "notify_enabled",
+    "remote_launch_enabled",
 )
 
 
@@ -49,10 +51,14 @@ async def read_settings(
 @router.put("/settings", response_model=SettingsResponse)
 async def update_settings(
     payload: SettingsUpdateRequest,
-    _device: Device | None = Depends(current_device_or_loopback),
+    device: Device | None = Depends(current_device_or_loopback),
     state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
+    if payload.remote_launch_enabled is not None and device is not None:
+        raise ForbiddenError(
+            "Bu ayar yalnizca bilgisayarin kendi PhoneShare panelinden degistirilebilir."
+        )
     changed = payload.model_dump(exclude_none=True)
     for key, value in changed.items():
         setattr(state.config, key, value)

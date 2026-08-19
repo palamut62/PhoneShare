@@ -64,6 +64,17 @@ class TestDevices:
         assert "token" not in devices[0]
         assert "token_hash" not in devices[0]
 
+    def test_ws_yokken_cihaz_offline(self, client, paired) -> None:
+        devices = client.get("/api/devices").json()
+        assert devices[0]["online"] is False
+
+    def test_ws_bagliyken_cihaz_online(self, client, paired) -> None:
+        with client.websocket_connect(f"/api/ws?token={paired['token']}"):
+            devices = client.get("/api/devices").json()
+            target = next(d for d in devices if d["id"] == paired["device_id"])
+            assert target["online"] is True
+        assert client.get("/api/devices").json()[0]["online"] is False
+
     def test_bilinmeyen_cihaz_404(self, client, paired) -> None:
         assert client.delete("/api/devices/yok").status_code == 404
 
@@ -89,6 +100,104 @@ class TestSettings:
 
     def test_bilinmeyen_alan_reddedilir(self, client, paired) -> None:
         assert client.put("/api/settings", json={"gizli": True}).status_code == 422
+
+    def test_telefon_remote_launch_acamaz(self, client, paired) -> None:
+        # paired fixture istemciyi cihaz token'i ile isaretler (loopback degil).
+        before = client.get("/api/settings").json()["remote_launch_enabled"]
+        assert before is False
+
+        response = client.put("/api/settings", json={"remote_launch_enabled": True})
+        assert response.status_code == 403
+
+        assert client.get("/api/settings").json()["remote_launch_enabled"] is False
+
+
+class TestApps:
+    def test_listeleme_exe_path_icermez(self, client, tmp_path: Path) -> None:
+        exe = tmp_path / "notepad.exe"
+        exe.write_bytes(b"MZ")
+        created = client.post(
+            "/api/apps", json={"name": "Not Defteri", "exe_path": str(exe)}
+        )
+        assert created.status_code == 201, created.text
+        body = created.json()
+        assert "exe_path" not in body
+        assert "args" not in body
+
+        listing = client.get("/api/apps").json()
+        assert any(item["id"] == body["id"] for item in listing)
+        for item in listing:
+            assert "exe_path" not in item
+            assert "args" not in item
+
+    def test_telefon_token_ile_kayit_reddedilir(self, client, paired, tmp_path: Path) -> None:
+        exe = tmp_path / "app.exe"
+        exe.write_bytes(b"MZ")
+        response = client.post(
+            "/api/apps", json={"name": "App", "exe_path": str(exe)}
+        )
+        assert response.status_code == 403
+
+    def test_telefon_token_ile_silme_reddedilir(self, client, paired) -> None:
+        assert client.delete("/api/apps/yok").status_code == 403
+
+    def test_txt_uzantisi_reddedilir(self, client, tmp_path: Path) -> None:
+        f = tmp_path / "app.txt"
+        f.write_text("hello")
+        response = client.post("/api/apps", json={"name": "App", "exe_path": str(f)})
+        assert response.status_code == 422
+
+    def test_olmayan_yol_reddedilir(self, client, tmp_path: Path) -> None:
+        response = client.post(
+            "/api/apps", json={"name": "App", "exe_path": str(tmp_path / "yok.exe")}
+        )
+        assert response.status_code == 422
+
+    def test_goreli_yol_reddedilir(self, client) -> None:
+        response = client.post(
+            "/api/apps", json={"name": "App", "exe_path": "notepad.exe"}
+        )
+        assert response.status_code == 422
+
+    def test_launch_varsayilan_kapali(self, client, tmp_path: Path) -> None:
+        exe = tmp_path / "app.exe"
+        exe.write_bytes(b"MZ")
+        created = client.post("/api/apps", json={"name": "App", "exe_path": str(exe)})
+        assert created.status_code == 201
+        app_id = created.json()["id"]
+        response = client.post(f"/api/apps/{app_id}/launch")
+        assert response.status_code == 422
+
+    def test_launch_subprocess_guvenli_cagrilir(
+        self, client, state, tmp_path: Path, monkeypatch
+    ) -> None:
+        exe = tmp_path / "app.exe"
+        exe.write_bytes(b"MZ")
+        created = client.post("/api/apps", json={"name": "App", "exe_path": str(exe)})
+        assert created.status_code == 201
+        app_id = created.json()["id"]
+
+        state.config.remote_launch_enabled = True
+
+        calls: list[dict] = []
+
+        class _FakeProc:
+            pid = 1234
+
+        def fake_popen(cmd, **kwargs):
+            calls.append({"cmd": cmd, "kwargs": kwargs})
+            return _FakeProc()
+
+        import phoneshare_receiver.services.apps as apps_module
+
+        monkeypatch.setattr(apps_module.subprocess, "Popen", fake_popen)
+
+        response = client.post(f"/api/apps/{app_id}/launch")
+        assert response.status_code == 200, response.text
+        assert len(calls) == 1
+        assert isinstance(calls[0]["cmd"], list)
+        assert calls[0]["cmd"][0] == str(exe)
+        assert calls[0]["kwargs"]["shell"] is False
 
 
 class TestTransfersFilters:
@@ -131,8 +240,10 @@ class TestSpa:
         (dist / "manifest.webmanifest").write_text('{"name":"PhoneShare"}', encoding="utf-8")
         (dist / "_next").mkdir()
         (dist / "_next" / "app.js").write_text("console.log(1)", encoding="utf-8")
+        (dist / "index.txt").write_text("0:RSC-ROOT", encoding="utf-8")
         (dist / "stats").mkdir()
         (dist / "stats" / "index.html").write_text("<html>Stats</html>", encoding="utf-8")
+        (dist / "stats" / "index.txt").write_text("0:RSC-STATS", encoding="utf-8")
 
         with TestClient(create_app(state, configure_logging=False, web_dist=dist)) as tc:
             index = tc.get("/")
@@ -165,6 +276,15 @@ class TestSpa:
             assert stats.status_code == 200
             assert stats.text == "<html>Stats</html>"
             assert tc.get("/stats/").text == "<html>Stats</html>"
+
+            # RSC (istemci tarafi gezinme) istegine HTML degil payload doner;
+            # aksi halde Next tam sayfa yeniden yuklemesine duser.
+            rsc = tc.get("/stats/", headers={"RSC": "1"})
+            assert rsc.text == "0:RSC-STATS"
+            assert rsc.headers["content-type"].startswith("text/x-component")
+            assert tc.get("/stats/", params={"_rsc": "abc12"}).text == "0:RSC-STATS"
+            # Bilinmeyen yol icin RSC fallback'i kok payload'dir.
+            assert tc.get("/ayarlar/hedefler", headers={"RSC": "1"}).text == "0:RSC-ROOT"
 
             # Dizin yoksa davranis degismez: hala ana index.html.
             assert tc.get("/transfers").text == "<html>PWA</html>"

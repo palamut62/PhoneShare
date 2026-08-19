@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.errors import NotFoundError
+from ...core.state import ReceiverState
 from ...models import Device
 from ...schemas import DeviceResponse
 from ...security import audit
-from ..deps import current_device_or_loopback, get_session
+from ..deps import current_device_or_loopback, get_session, get_state
 
 router = APIRouter(tags=["devices"])
 
@@ -19,10 +20,24 @@ router = APIRouter(tags=["devices"])
 async def list_devices(
     _device: Device | None = Depends(current_device_or_loopback),
     session: AsyncSession = Depends(get_session),
-) -> list[Device]:
-    return list(
+    state: ReceiverState = Depends(get_state),
+) -> list[DeviceResponse]:
+    """Kayitli cihazlar; `online` alani WS baglantisindan turetilir (PRD §46)."""
+    rows = (
         (await session.execute(select(Device).order_by(Device.created_at.desc()))).scalars().all()
     )
+    online_ids = state.hub.online_device_ids
+    return [
+        DeviceResponse(
+            id=device.id,
+            name=device.name,
+            created_at=device.created_at,
+            last_seen=device.last_seen,
+            enabled=device.enabled,
+            online=device.id in online_ids,
+        )
+        for device in rows
+    ]
 
 
 @router.delete("/devices/{device_id}", status_code=204)

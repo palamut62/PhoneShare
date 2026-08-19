@@ -28,7 +28,7 @@ interface AppState {
   locale: string;
   savePreferences: (patch: Partial<Preferences>) => Promise<void>;
   saveSession: (session: DeviceSession) => Promise<void>;
-  enterDesktopSession: (deviceId: string, deviceName: string) => void;
+  enterDesktopSession: (deviceId: string, deviceName: string) => Promise<void>;
   resetSession: () => Promise<void>;
 }
 
@@ -125,13 +125,18 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     await persistSession(next);
   }, []);
 
-  const enterDesktopSession = React.useCallback((deviceId: string, deviceName: string) => {
-    setSessionState({
+  // Masaustu oturumu KALICI olmalidir: aksi halde her tam sayfa yenilemesinde
+  // (sekme gecisi, WebView reload) oturum kaybolur ve kullanici cihaz secim
+  // ekranina geri atilir.
+  const enterDesktopSession = React.useCallback(async (deviceId: string, deviceName: string) => {
+    const next: DeviceSession = {
       deviceId,
       deviceName,
       token: DESKTOP_SESSION_TOKEN,
       pairedAt: Date.now(),
-    });
+    };
+    setSessionState(next);
+    await persistSession(next);
   }, []);
 
   const resetSession = React.useCallback(async () => {

@@ -57,6 +57,7 @@ pub fn run() {
             commands::clear_receiver_logs,
             commands::report_status,
             commands::pick_folder,
+            commands::pick_file,
             commands::ensure_folder,
             commands::open_path,
             commands::reveal_in_explorer,

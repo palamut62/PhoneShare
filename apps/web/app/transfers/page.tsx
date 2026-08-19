@@ -2,10 +2,10 @@
 
 import type { TransferResponse } from "@phoneshare/shared-types";
 import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
-import { AppShell } from "@/components/app-shell";
 import { StatusHeader } from "@/components/status-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,16 +15,9 @@ import { formatBytes } from "@/lib/upload/speed";
 import { dayLabel, formatDateTime } from "@/lib/utils";
 
 export default function TransfersPage() {
-  return (
-    <AppShell>
-      <TransfersScreen />
-    </AppShell>
-  );
-}
-
-function TransfersScreen() {
   const { t, locale } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
+  const router = useRouter();
   const [rawQuery, setRawQuery] = React.useState("");
   const [query, setQuery] = React.useState("");
 
@@ -102,7 +95,7 @@ function TransfersScreen() {
                         <Button
                           variant="secondary"
                           className="min-h-11 text-xs"
-                          onClick={() => (window.location.href = "/")}
+                          onClick={() => router.push("/")}
                         >
                           {t.retry}
                         </Button>

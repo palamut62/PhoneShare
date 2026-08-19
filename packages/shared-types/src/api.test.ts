@@ -177,6 +177,7 @@ describe("settings", () => {
       telemetry_enabled: false,
       ai_enabled: false,
       notify_enabled: false,
+      remote_launch_enabled: false,
     });
     expect(parsed.ai_enabled).toBe(false);
   });

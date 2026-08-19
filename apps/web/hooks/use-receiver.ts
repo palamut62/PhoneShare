@@ -14,9 +14,13 @@ import {
   getStats,
   getTargets,
   getTransfers,
+  listApps,
 } from "@/lib/api/client";
 import { useApp } from "@/components/app-providers";
 import { isTauri } from "@/lib/tauri";
+
+/** PRD §62 — cihaz `online` durumu WS baglantisina bagli oldugu icin periyodik tazelenir. */
+const DEVICES_POLL_INTERVAL_MS = 10_000;
 
 /** PRD §44/§45 — PC durumu. WS varsa canli, yoksa polling. */
 export function useHealth() {
@@ -47,6 +51,16 @@ export function useTargets() {
   });
 }
 
+/** Uzaktan baslatici — kayitli masaustu uygulamalari. */
+export function useApps() {
+  const { session } = useApp();
+  return useQuery({
+    queryKey: ["apps"],
+    queryFn: () => listApps(session?.token ?? ""),
+    enabled: Boolean(session?.token) || isTauri(),
+  });
+}
+
 /**
  * PRD §62 — eslesmis cihazlar; ana ekranda "telefon ekle" cagrisi icin.
  * PC panelinde oturum tokeni yoktur: 401 beklenen bir durumdur, sessizce bos kabul
@@ -58,6 +72,7 @@ export function useDevices() {
     queryKey: ["devices"],
     queryFn: () => getDevices(session?.token ?? ""),
     enabled: Boolean(session?.token) || isTauri(),
+    refetchInterval: DEVICES_POLL_INTERVAL_MS,
     retry: 0,
   });
 }
