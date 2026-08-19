@@ -6,7 +6,7 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+use crate::proc::command as hidden_command;
 
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
@@ -274,7 +274,7 @@ fn allowed_roots(state: &State<'_, AppState>) -> Vec<String> {
 
 fn spawn_explorer(args: Vec<String>) -> Result<(), String> {
     // Kabuk (cmd.exe) kullanilmaz: her arguman ayri gecer, metakarakter yorumlanmaz.
-    Command::new("explorer.exe")
+    hidden_command("explorer.exe")
         .args(&args)
         .spawn()
         .map(|_| ())
@@ -603,7 +603,7 @@ pub fn create_certificate(
         "tailscale" => {
             let cert = dir.join(format!("{host}.crt"));
             let key = dir.join(format!("{host}.key"));
-            let output = Command::new("tailscale")
+            let output = hidden_command("tailscale")
                 .arg("cert")
                 .arg("--cert-file")
                 .arg(&cert)
@@ -622,9 +622,9 @@ pub fn create_certificate(
         }
         "self_signed" => {
             let mut command = match certgen_binary() {
-                Some(exe) => Command::new(exe),
+                Some(exe) => hidden_command(exe),
                 None => {
-                    let mut command = Command::new(
+                    let mut command = hidden_command(
                         std::env::var("PHONESHARE_PYTHON").unwrap_or_else(|_| "python".to_string()),
                     );
                     command.arg("scripts/gen_cert.py");

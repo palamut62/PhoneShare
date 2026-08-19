@@ -257,6 +257,11 @@ def local_ipv4_interfaces() -> list[str]:
     return hosts
 
 
+# Windows'ta konsol tabanli araci GUI oturumundan calistirinca kisa omurlu bir
+# konsol penceresi acilir; periyodik cagrida ekranda yanip sonen pencere olur.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
 def tailscale_dns_name() -> str | None:
     """Kuruluysa MagicDNS adi. Tailscale yoksa/yavassa sessizce None doner."""
     try:
@@ -266,6 +271,8 @@ def tailscale_dns_name() -> str | None:
             text=True,
             timeout=2.0,
             check=False,
+            stdin=subprocess.DEVNULL,
+            creationflags=_NO_WINDOW,
         )
     except (OSError, subprocess.SubprocessError):
         return None

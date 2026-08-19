@@ -3,7 +3,7 @@
 import { MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, PRODUCT_OWNER } from "@phoneshare/shared-config";
 import type { RuleCreateRequest, RuleResponse } from "@phoneshare/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Github, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, Github, Plus, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
@@ -15,7 +15,16 @@ import { Input, Label, Select, Toggle } from "@/components/ui/field";
 import { useHealth, useRules, useTargets } from "@/hooks/use-receiver";
 import { createRule, deleteRule, removeDevice, updateRule } from "@/lib/api/client";
 import type { Dictionary } from "@/lib/i18n";
-import { getTailscaleStatus, isTauri, setRemoteAccess } from "@/lib/tauri";
+import {
+  getAutostart,
+  getDesktopConfig,
+  getTailscaleStatus,
+  isTauri,
+  pickSaveFolder,
+  setAutostart,
+  setRemoteAccess,
+  setSaveFolder,
+} from "@/lib/tauri";
 import type { Language, ThemePreference } from "@/lib/storage/session";
 import { formatBytes } from "@/lib/upload/speed";
 import { cn } from "@/lib/utils";
@@ -118,6 +127,10 @@ function SettingsScreen() {
           </div>
         </Card>
 
+        <SaveFolderCard />
+
+        <DesktopStartupCard />
+
         <PresetsCard />
 
         <RulesCard />
@@ -196,6 +209,111 @@ function SettingsScreen() {
         </footer>
       </div>
     </>
+  );
+}
+
+function DesktopStartupCard() {
+  const [enabled, setEnabled] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isTauri()) return;
+    void getAutostart().then((current) => {
+      if (current !== null) setEnabled(current);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const updateAutostart = React.useCallback(async (next: boolean) => {
+    const previous = enabled;
+    setEnabled(next);
+    setIsSaving(true);
+    setError(false);
+
+    const saved = await setAutostart(next);
+    if (saved === null) {
+      setEnabled(previous);
+      setError(true);
+    } else {
+      setEnabled(saved);
+    }
+    setIsSaving(false);
+  }, [enabled]);
+
+  if (!isTauri()) return null;
+
+  return (
+    <Card>
+      <CardTitle>WINDOWS STARTUP</CardTitle>
+      <div className="mt-2">
+        <Toggle
+          id="desktop-autostart"
+          checked={enabled}
+          disabled={isLoading || isSaving}
+          onCheckedChange={(value) => void updateAutostart(value)}
+          label="Start PhoneShare when I sign in to Windows"
+          description="PhoneShare starts minimized in the system tray. This is enabled by default."
+        />
+      </div>
+      {error ? (
+        <p className="mt-2 text-xs text-danger">The Windows startup setting could not be updated.</p>
+      ) : null}
+    </Card>
+  );
+}
+
+function SaveFolderCard() {
+  const [folder, setFolder] = React.useState("");
+  const [status, setStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  React.useEffect(() => {
+    if (!isTauri()) return;
+    void getDesktopConfig().then((config) => setFolder(config?.base_folder ?? ""));
+  }, []);
+
+  const chooseFolder = React.useCallback(async () => {
+    setStatus("saving");
+    const selected = await pickSaveFolder();
+    if (!selected) {
+      setStatus("idle");
+      return;
+    }
+    const updated = await setSaveFolder(selected);
+    if (!updated) {
+      setStatus("error");
+      return;
+    }
+    setFolder(updated.base_folder ?? selected);
+    setStatus("saved");
+  }, []);
+
+  if (!isTauri()) return null;
+
+  return (
+    <Card>
+      <CardTitle>FILE STORAGE</CardTitle>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Received files are saved inside a dated folder at this location.
+      </p>
+      <div className="mt-3 rounded-xl border border-border bg-muted/50 px-3 py-2.5">
+        <p className="break-all text-sm font-medium text-foreground">{folder || "Loading..."}</p>
+      </div>
+      <Button
+        variant="secondary"
+        className="mt-3 w-full sm:w-auto"
+        disabled={status === "saving"}
+        onClick={() => void chooseFolder()}
+      >
+        <FolderOpen aria-hidden className="h-4 w-4" />
+        {status === "saving" ? "Saving..." : "Change Folder"}
+      </Button>
+      {status === "saved" ? <p className="mt-2 text-xs text-success">Save folder updated.</p> : null}
+      {status === "error" ? (
+        <p className="mt-2 text-xs text-danger">The folder could not be updated. Please try again.</p>
+      ) : null}
+    </Card>
   );
 }
 

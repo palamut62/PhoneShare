@@ -37,7 +37,8 @@ export interface PairAddress {
   port?: number | null;
 }
 
-interface ReceiverConfig {
+export interface ReceiverConfig {
+  base_folder?: string | null;
   receiver_port: number;
   receiver_tls: boolean;
 }
@@ -53,6 +54,33 @@ export function getReceiverOrigin(): Promise<string | null> {
     return `${scheme}://127.0.0.1:${config.receiver_port}`;
   });
   return receiverOriginPromise;
+}
+
+/** Masaustu uygulamasinin guvenli, sir icermeyen ayarlarini getirir. */
+export function getDesktopConfig(): Promise<ReceiverConfig | null> {
+  return invokeTauri<ReceiverConfig>("get_config");
+}
+
+/** Yerel Windows klasor secicisini acar. Iptalde `null` doner. */
+export function pickSaveFolder(): Promise<string | null> {
+  return invokeTauri<string>("pick_folder", { title: "Choose save folder" });
+}
+
+/** Ana kaydetme klasorunu degistirir ve receiver ayarini es zamanli gunceller. */
+export function setSaveFolder(baseFolder: string): Promise<ReceiverConfig | null> {
+  return invokeTauri<ReceiverConfig>("update_config", {
+    patch: { base_folder: baseFolder },
+  });
+}
+
+/** Windows oturumu acildiginda PhoneShare'in otomatik baslama durumunu getirir. */
+export function getAutostart(): Promise<boolean | null> {
+  return invokeTauri<boolean>("get_autostart");
+}
+
+/** Windows otomatik baslatma kaydini gunceller ve gercek kayit durumunu dondurur. */
+export function setAutostart(enabled: boolean): Promise<boolean | null> {
+  return invokeTauri<boolean>("set_autostart", { enabled });
 }
 
 /** Panel: receiver adresi uzak (Tailscale) moddaysa scheme + host doner. */

@@ -337,6 +337,22 @@ export type RuleUpdateRequest = z.infer<typeof ruleUpdateRequestSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 export type WsEvent = z.infer<typeof wsEventSchema>;
 
+export interface FileBrowserEntry {
+  name: string;
+  path: string;
+  kind: "target" | "folder" | "file";
+  size: number | null;
+  modified_at: string | null;
+  target_id: string;
+}
+
+export interface FileBrowserResponse {
+  target_id: string | null;
+  target_name?: string;
+  path: string;
+  entries: FileBrowserEntry[];
+}
+
 /** PRD §57 — receiver uc noktalari (istemci tarafinda tek dogruluk kaynagi). */
 export const API_ROUTES = {
   health: "/api/health",
@@ -345,6 +361,8 @@ export const API_ROUTES = {
   devices: "/api/devices",
   device: (id: string) => `/api/devices/${encodeURIComponent(id)}`,
   targets: "/api/targets",
+  files: "/api/files",
+  fileDownload: "/api/files/download",
   target: (id: string) => `/api/targets/${encodeURIComponent(id)}`,
   uploadInit: "/api/uploads/init",
   uploadChunk: (id: string) => `/api/uploads/${encodeURIComponent(id)}/chunk`,

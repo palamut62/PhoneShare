@@ -8,11 +8,12 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use serde::Serialize;
 
 use crate::config::{self, DesktopConfig};
+use crate::proc::command;
 
 /// Tailscale CLI'sinin bilinen kurulum yollari. WoW64 (32-bit proses, 64-bit
 /// Windows) icin `Sysnative` yolu da denenir.
@@ -85,7 +86,7 @@ pub fn status(config: &DesktopConfig) -> TailscaleStatus {
         };
     };
 
-    let value: serde_json::Value = Command::new(cli)
+    let value: serde_json::Value = command(cli)
         .args(["status", "--json"])
         .stdin(Stdio::null())
         .output()
@@ -135,7 +136,7 @@ pub fn fetch_cert(dns: &str) -> Result<(), String> {
     let cli = cli().ok_or_else(|| "Tailscale kurulu degil.".to_string())?;
     let dir = cert_dir();
     fs::create_dir_all(&dir).map_err(|_| "Sertifika klasoru olusturulamadi.".to_string())?;
-    let output = Command::new(cli)
+    let output = command(cli)
         .args(["cert", "--cert-dir"])
         .arg(&dir)
         .arg(dns)

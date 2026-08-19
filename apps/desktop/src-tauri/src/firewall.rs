@@ -4,7 +4,7 @@
 //! kural eklenemez; bu durumda kullaniciya LAN uzerinden erisimin calismayabilecegi
 //! acikca soylenir (sihirbaz adimi bunu isler).
 
-use std::process::Command;
+use crate::proc::command;
 
 pub const RULE_NAME: &str = "PhoneShare Receiver";
 
@@ -48,7 +48,7 @@ pub fn show_rule_args() -> Vec<String> {
 }
 
 fn run(args: Vec<String>) -> Result<String, String> {
-    let output = Command::new("netsh")
+    let output = command("netsh")
         .args(&args)
         .output()
         .map_err(|_| "Guvenlik duvari araci calistirilamadi.".to_string())?;
