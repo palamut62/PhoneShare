@@ -157,6 +157,7 @@ def detect_addresses(
     interfaces: Sequence[str] = (),
     primary: str | None = None,
     tailscale_dns: str | None = None,
+    tailscale_ipv4: str | None = None,
 ) -> list[ReceiverAddress]:
     """Aday adresleri sirali dondurur: LAN > Tailscale > loopback.
 
@@ -164,6 +165,9 @@ def detect_addresses(
     - `primary`: varsayilan rota uzerindeki IPv4 (UDP connect hilesi); varsa LAN
       adaylari arasinda daima ilk siraya alinir.
     - `tailscale_dns`: MagicDNS adi (`*.ts.net`); varsa 100.x IPv4'ten once gelir.
+    - `tailscale_ipv4`: `tailscale status --json` uzerinden alinan IPv4; `interfaces`
+      icinde yer almasa bile Tailscale adaylarina eklenir (aralikli kayboldugu
+      durumlar icin).
 
     Loopback her zaman son adaydir ve `reachable_from_phone=False` ile isaretlenir.
     """
@@ -187,6 +191,8 @@ def detect_addresses(
     if tailscale_dns:
         tailscale.append(tailscale_dns)
     tailscale.extend(h for h in candidates if is_tailscale_ipv4(h))
+    if tailscale_ipv4 and tailscale_ipv4 not in tailscale:
+        tailscale.append(tailscale_ipv4)
 
     results: list[ReceiverAddress] = []
     for host in lan:
@@ -257,8 +263,8 @@ def local_ipv4_interfaces() -> list[str]:
     return hosts
 
 
-def tailscale_dns_name() -> str | None:
-    """Kuruluysa MagicDNS adi. Tailscale yoksa/yavassa sessizce None doner."""
+def tailscale_self() -> tuple[str | None, str | None]:
+    """Kuruluysa (ipv4, MagicDNS adi). Tailscale yoksa/yavassa sessizce (None, None) doner."""
     try:
         completed = subprocess.run(  # noqa: S603 - sabit komut, kullanici girdisi yok
             ["tailscale", "status", "--json"],  # noqa: S607
@@ -268,10 +274,15 @@ def tailscale_dns_name() -> str | None:
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return (None, None)
     if completed.returncode != 0:
-        return None
-    _, dns = parse_tailscale_status(completed.stdout)
+        return (None, None)
+    return parse_tailscale_status(completed.stdout)
+
+
+def tailscale_dns_name() -> str | None:
+    """Kuruluysa MagicDNS adi. Tailscale yoksa/yavassa sessizce None doner."""
+    _, dns = tailscale_self()
     return dns
 
 
@@ -295,12 +306,14 @@ def current_addresses(config, *, ttl_sec: float = _CACHE_TTL_SEC) -> list[Receiv
     if _CACHE["key"] == key and now - float(_CACHE["at"]) < ttl_sec:  # type: ignore[arg-type]
         return list(_CACHE["value"])  # type: ignore[arg-type]
 
+    ts_ipv4, ts_dns = tailscale_self()
     addresses = detect_addresses(
         port=int(config.port),
         scheme=scheme,
         interfaces=local_ipv4_interfaces(),
         primary=primary_ipv4(),
-        tailscale_dns=tailscale_dns_name(),
+        tailscale_dns=ts_dns,
+        tailscale_ipv4=ts_ipv4,
     )
     _CACHE["key"] = key
     _CACHE["at"] = now

@@ -92,6 +92,17 @@ class TestAdresTespiti:
         best = addresses.best_address(result)
         assert best is not None and best.kind == "loopback"
 
+    def test_tailscale_ipv4_ayri_eklenir_ve_tekillestirilir(self) -> None:
+        result = addresses.detect_addresses(
+            port=8765,
+            scheme="http",
+            interfaces=["192.168.1.180", "100.89.62.116"],
+            tailscale_dns="umut-pc.tail1.ts.net",
+            tailscale_ipv4="100.89.62.116",
+        )
+        hosts = [item.host for item in result]
+        assert hosts.count("100.89.62.116") == 1
+
     def test_tls_https_semasi(self) -> None:
         result = addresses.detect_addresses(
             port=8765, scheme="https", interfaces=["192.168.1.180"]
@@ -107,7 +118,7 @@ class TestCurrentAddresses:
         addresses.reset_cache()
         monkeypatch.setattr(addresses, "local_ipv4_interfaces", lambda: ["192.168.1.180"])
         monkeypatch.setattr(addresses, "primary_ipv4", lambda: "192.168.1.180")
-        monkeypatch.setattr(addresses, "tailscale_dns_name", lambda: None)
+        monkeypatch.setattr(addresses, "tailscale_self", lambda: (None, None))
         config.port = 8765
 
         result = addresses.current_addresses(config)
@@ -116,4 +127,23 @@ class TestCurrentAddresses:
         # Onbellek: ikinci cagri sistem sorgusu yapmadan ayni sonucu verir.
         monkeypatch.setattr(addresses, "local_ipv4_interfaces", lambda: ["10.0.0.5"])
         assert addresses.current_addresses(config)[0].host == "192.168.1.180"
+        addresses.reset_cache()
+
+    def test_getaddrinfo_atlasa_bile_tailscale_ip_gorunur(self, config, monkeypatch) -> None:
+        # Kok sebep testi: getaddrinfo Tailscale adaptorunu atlasa bile
+        # `tailscale status --json` cikan IPv4, adres listesinde yer almali.
+        addresses.reset_cache()
+        monkeypatch.setattr(addresses, "local_ipv4_interfaces", lambda: ["192.168.1.180"])
+        monkeypatch.setattr(addresses, "primary_ipv4", lambda: "192.168.1.180")
+        monkeypatch.setattr(
+            addresses, "tailscale_self", lambda: ("100.89.62.116", "umut-pc.tail1.ts.net")
+        )
+        config.port = 8765
+
+        result = addresses.current_addresses(config)
+        hosts = [item.host for item in result]
+        assert "100.89.62.116" in hosts
+        assert "umut-pc.tail1.ts.net" in hosts
+        kinds = {item.host: item.kind for item in result}
+        assert kinds["100.89.62.116"] == "tailscale"
         addresses.reset_cache()
