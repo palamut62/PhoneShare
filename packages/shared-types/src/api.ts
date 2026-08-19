@@ -263,6 +263,8 @@ export const settingsResponseSchema = z.object({
   notify_enabled: z.boolean(),
   /** Uzaktan uygulama baslatma — varsayilan kapali, yalnizca PC panelinden acilir. */
   remote_launch_enabled: z.boolean(),
+  /** Uzaktan dosya gezme/indirme — varsayilan kapali, yalnizca PC panelinden acilir. */
+  remote_browse_enabled: z.boolean(),
 });
 
 export const settingsUpdateRequestSchema = settingsResponseSchema.partial();

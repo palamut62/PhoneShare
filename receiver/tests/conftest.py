@@ -43,6 +43,7 @@ def config(target_root: Path):
         max_total_transfer_bytes=32 * 1024 * 1024,
         mdns_enabled=False,
         tray_enabled=False,
+        remote_browse_enabled=True,
     )
 
 

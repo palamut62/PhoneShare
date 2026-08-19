@@ -111,6 +111,15 @@ class TestSettings:
 
         assert client.get("/api/settings").json()["remote_launch_enabled"] is False
 
+    def test_telefon_remote_browse_degistiremez(self, client, paired) -> None:
+        # paired fixture istemciyi cihaz token'i ile isaretler (loopback degil).
+        before = client.get("/api/settings").json()["remote_browse_enabled"]
+
+        response = client.put("/api/settings", json={"remote_browse_enabled": not before})
+        assert response.status_code == 403
+
+        assert client.get("/api/settings").json()["remote_browse_enabled"] == before
+
 
 class TestApps:
     def test_listeleme_exe_path_icermez(self, client, tmp_path: Path) -> None:

@@ -178,6 +178,7 @@ describe("settings", () => {
       ai_enabled: false,
       notify_enabled: false,
       remote_launch_enabled: false,
+      remote_browse_enabled: false,
     });
     expect(parsed.ai_enabled).toBe(false);
   });

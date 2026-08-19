@@ -11,10 +11,11 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.errors import NotFoundError, ValidationError
+from ...core.state import ReceiverState
 from ...models import Device
 from ...security.paths import is_within
 from ...services.targets import get_target
-from ..deps import current_device_or_loopback, get_session
+from ..deps import current_device_or_loopback, get_session, get_state
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -24,6 +25,11 @@ def _resolve_entry(root: Path, relative_path: str, *, expect_directory: bool) ->
     normalized = relative_path.replace("\\", "/").strip("/")
     parts = PurePosixPath(normalized).parts if normalized else ()
     if any(part in {"", ".", ".."} for part in parts):
+        raise ValidationError("Dosya yolu kullanilamaz.")
+    if any(
+        ":" in part or any(ord(ch) < 0x20 for ch in part)
+        for part in parts
+    ):
         raise ValidationError("Dosya yolu kullanilamaz.")
 
     candidate = root.joinpath(*parts)
@@ -44,8 +50,11 @@ async def list_files(
     path: str = Query(default="", max_length=1024),
     _device: Device | None = Depends(current_device_or_loopback),
     session: AsyncSession = Depends(get_session),
+    state: ReceiverState = Depends(get_state),
 ) -> dict:
     """Etkin hedefleri veya secilen hedefin bir klasorundeki girdileri listeler."""
+    if not state.config.remote_browse_enabled:
+        raise ValidationError("Uzaktan dosya erisimi kapali.")
     if target_id is None:
         from ...services.targets import list_targets
 
@@ -106,8 +115,11 @@ async def download_file(
     path: str = Query(min_length=1, max_length=1024),
     _device: Device | None = Depends(current_device_or_loopback),
     session: AsyncSession = Depends(get_session),
+    state: ReceiverState = Depends(get_state),
 ) -> FileResponse:
     """Etkin hedef icindeki tek bir dosyayi telefona indirir."""
+    if not state.config.remote_browse_enabled:
+        raise ValidationError("Uzaktan dosya erisimi kapali.")
     target = await get_target(session, target_id)
     if not target.enabled:
         raise NotFoundError("Paylasilan klasor bulunamadi.")

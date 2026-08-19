@@ -57,3 +57,29 @@ def test_rejects_traversal_and_requires_phone_auth(
 
     unauthenticated = lan_client.get("/api/files")
     assert unauthenticated.status_code == 401
+
+
+def test_rejects_alternate_data_stream_path(client, paired, belgeler: str) -> None:
+    """Windows ADS (dosya.txt:ads) ile guvenlik denetimlerinin atlatilmasini engeller."""
+    listing = client.get(
+        "/api/files", params={"target_id": belgeler, "path": "belge.txt:gizli"}
+    )
+    assert listing.status_code == 422
+
+    download = client.get(
+        "/api/files/download", params={"target_id": belgeler, "path": "belge.txt:gizli"}
+    )
+    assert download.status_code == 422
+
+
+def test_remote_browse_disabled_by_default(client, paired, belgeler: str, state) -> None:
+    """Uzaktan dosya erisimi varsayilan kapali olmali; kapaliyken istekler reddedilir."""
+    state.config.remote_browse_enabled = False
+
+    listing = client.get("/api/files", params={"target_id": belgeler})
+    assert listing.status_code == 422
+
+    download = client.get(
+        "/api/files/download", params={"target_id": belgeler, "path": "belge.txt"}
+    )
+    assert download.status_code == 422

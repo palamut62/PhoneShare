@@ -93,6 +93,8 @@ class ReceiverConfig:
     remember_last_target: bool = True
     # Uzaktan uygulama baslatma (PWA -> PC). Varsayilan KAPALI; acikca acilmadan calismaz.
     remote_launch_enabled: bool = False
+    # Uzaktan dosya gezme/indirme (PWA -> PC). Varsayilan KAPALI; acikca acilmadan calismaz.
+    remote_browse_enabled: bool = False
 
     # ------------------------------------------------------------------ #
     # MVP DISI (PRD §76-78). Varsayilan KAPALI; MVP tamamlanmadan         #

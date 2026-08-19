@@ -32,6 +32,7 @@ _FIELDS = (
     "ai_enabled",
     "notify_enabled",
     "remote_launch_enabled",
+    "remote_browse_enabled",
 )
 
 
@@ -55,7 +56,9 @@ async def update_settings(
     state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
-    if payload.remote_launch_enabled is not None and device is not None:
+    if (
+        payload.remote_launch_enabled is not None or payload.remote_browse_enabled is not None
+    ) and device is not None:
         raise ForbiddenError(
             "Bu ayar yalnizca bilgisayarin kendi PhoneShare panelinden degistirilebilir."
         )

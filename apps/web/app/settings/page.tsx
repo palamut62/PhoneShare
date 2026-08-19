@@ -501,6 +501,8 @@ function TargetsCard() {
   const targetsQuery = useTargets();
   const targets = React.useMemo(() => targetsQuery.data ?? [], [targetsQuery.data]);
   const desktop = isTauri();
+  const settingsQuery = useReceiverSettings();
+  const remoteBrowseEnabled = settingsQuery.data?.remote_browse_enabled ?? false;
 
   // Yerel config: ana klasor + hedef id -> gercek yol eslemesi (yalnizca masaustunde).
   const configQuery = useQuery({
@@ -513,6 +515,15 @@ function TargetsCard() {
 
   const [name, setName] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+
+  const browseToggleMutation = useMutation({
+    mutationFn: (enabled: boolean) => updateSettings(token, { remote_browse_enabled: enabled }),
+    onSuccess: () => {
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: () => setError("The setting could not be updated."),
+  });
 
   const invalidateTargets = React.useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["targets"] });
@@ -568,11 +579,28 @@ function TargetsCard() {
     onSettled: invalidateTargets,
   });
 
-  const busy = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const busy =
+    addMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    browseToggleMutation.isPending;
 
   return (
     <Card>
       <CardTitle>TARGET FOLDERS</CardTitle>
+
+      {desktop ? (
+        <div className="mt-2 divide-y divide-border">
+          <Toggle
+            id="remote-browse"
+            checked={remoteBrowseEnabled}
+            onCheckedChange={(value) => browseToggleMutation.mutate(value)}
+            label="Allow remote file access"
+            description="When enabled, paired phones can browse and download files from the target folders below."
+          />
+        </div>
+      ) : null}
+
       {desktop ? (
         <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           Incoming files are saved into these folders. New folders must be inside the base folder:

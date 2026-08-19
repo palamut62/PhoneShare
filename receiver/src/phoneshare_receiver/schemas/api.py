@@ -285,6 +285,8 @@ class SettingsResponse(BaseModel):
     notify_enabled: bool
     #: Uzaktan uygulama baslatma (PRD apps) — varsayilan kapali, yalnizca PC panelinden acilir.
     remote_launch_enabled: bool
+    #: Uzaktan dosya gezme/indirme — varsayilan kapali, yalnizca PC panelinden acilir.
+    remote_browse_enabled: bool
 
 
 class SettingsUpdateRequest(ApiModel):
@@ -299,6 +301,7 @@ class SettingsUpdateRequest(ApiModel):
     ai_enabled: bool | None = None
     notify_enabled: bool | None = None
     remote_launch_enabled: bool | None = None
+    remote_browse_enabled: bool | None = None
 
 
 # --------------------------------------------------------------------- #
