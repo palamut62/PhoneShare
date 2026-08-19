@@ -48,9 +48,9 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/phoneshare-receiver"],
     "resources": {
-      "../../web/out": "web"
+      "../../web/out": "web",
+      "../../../receiver/dist/phoneshare-receiver": "receiver"
     },
     "windows": {
       "nsis": {

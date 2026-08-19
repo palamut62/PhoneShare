@@ -40,4 +40,7 @@ opencode.json
 .github/copilot-instructions.md
 .specstory/
 .continue/
-apps/desktop/src-tauri/binaries/phoneshare-receiver.exe
+# Receiver artik externalBin degil, `resources` ile paketleniyor (bkz. receiver/build.ps1);
+# binaries/ dizini kullanilmiyor.
+apps/desktop/src-tauri/binaries/
+receiver/build_out/

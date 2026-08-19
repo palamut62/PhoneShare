@@ -1,6 +1,8 @@
 //! Python receiver'i sidecar olarak yonetir (PRD §9).
 //!
-//! - Uretim: uygulama exe'sinin yaninda duran `phoneshare-receiver.exe` (PyInstaller).
+//! - Uretim: resource dizinindeki `receiver/` klasoru (PyInstaller onedir ciktisi),
+//!   `phoneshare-receiver.exe` + `_internal/`. Eski onefile kurulumlariyla geriye
+//!   donuk uyum icin uygulama exe'sinin yanindaki `phoneshare-receiver.exe` de denenir.
 //! - Gelistirme: `python -m phoneshare_receiver run` (repo icindeki `receiver/` paketi).
 //!
 //! stdout/stderr satirlari halka tamponunda tutulur ve `receiver-log` olayiyla panele
@@ -13,7 +15,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// Panelde gosterilecek en fazla log satiri.
 const LOG_CAPACITY: usize = 500;
@@ -64,8 +66,23 @@ fn hide_console(command: &mut Command) {
 #[cfg(not(windows))]
 fn hide_console(_command: &mut Command) {}
 
-/// Uretimdeki sidecar exe'si: uygulama calistirilabilirinin yanindadir.
-fn bundled_receiver() -> Option<PathBuf> {
+/// Uretimdeki sidecar exe'si. Once resource dizinindeki `receiver/` klasoru
+/// (PyInstaller onedir yerlesimi) denenir; bulunamazsa eski onefile
+/// kurulumlariyla geriye donuk uyum icin exe'nin yanina bakilir.
+fn bundled_receiver(app: &AppHandle) -> Option<PathBuf> {
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let candidate = resource_dir
+            .join("receiver")
+            .join("phoneshare-receiver.exe");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        let candidate = resource_dir.join("receiver").join("phoneshare-receiver");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
     let candidate = dir.join("phoneshare-receiver.exe");
@@ -167,7 +184,7 @@ impl Sidecar {
             return Ok(());
         }
 
-        let (mut command, mode) = match bundled_receiver() {
+        let (mut command, mode) = match bundled_receiver(app) {
             Some(exe) => {
                 let mut command = Command::new(exe);
                 command.arg("run");
