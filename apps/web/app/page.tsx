@@ -25,6 +25,7 @@ import {
 } from "@/hooks/use-receiver";
 import { useUploadQueue } from "@/hooks/use-upload-queue";
 import { launchApp } from "@/lib/api/client";
+import { toUserFacingError } from "@/lib/upload/errors";
 import { formatBytes } from "@/lib/upload/speed";
 import { formatDateTime } from "@/lib/utils";
 
@@ -333,6 +334,7 @@ export default function HomePage() {
 function AppsCard() {
   const { session } = useApp();
   const appsQuery = useApps();
+  const settingsQuery = useReceiverSettings();
   const apps = appsQuery.data ?? [];
   const [status, setStatus] = React.useState<Record<string, "started" | "error">>({});
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -347,22 +349,30 @@ function AppsCard() {
     },
     onError: (error: unknown, appId) => {
       setStatus((current) => ({ ...current, [appId]: "error" }));
-      setErrorMessage(error instanceof Error ? error.message : "The app could not be started.");
+      setErrorMessage(toUserFacingError(error).message);
     },
   });
 
   if (apps.length === 0) return null;
 
+  const launchDisabled = settingsQuery.data?.remote_launch_enabled === false;
+
   return (
     <Card>
       <CardTitle>Apps</CardTitle>
+      {launchDisabled ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Remote app launch is disabled on this computer. Enable &quot;Remote app launch&quot; from the
+          computer&apos;s own PhoneShare panel to start apps from here.
+        </p>
+      ) : null}
       {errorMessage ? <p className="mt-2 text-sm text-danger">{errorMessage}</p> : null}
       <ul className="mt-2 flex flex-col divide-y divide-border">
         {apps.map((app) => (
           <li key={app.id} className="py-1">
             <button
               type="button"
-              disabled={launchMutation.isPending}
+              disabled={launchMutation.isPending || launchDisabled}
               onClick={() => launchMutation.mutate(app.id)}
               className="flex min-h-14 w-full items-center gap-3 rounded-md px-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >

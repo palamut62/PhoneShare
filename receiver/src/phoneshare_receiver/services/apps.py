@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import ReceiverConfig
-from ..core.errors import NotFoundError, ValidationError
+from ..core.errors import ForbiddenError, NotFoundError, ValidationError
 from ..models import App
 from ..security import audit
 from .targets import slugify
@@ -94,7 +94,9 @@ async def delete_app(session: AsyncSession, app_id: str) -> None:
 
 async def launch_app(session: AsyncSession, config: ReceiverConfig, app_id: str) -> App:
     if not config.remote_launch_enabled:
-        raise ValidationError("Uzaktan uygulama baslatma kapali.")
+        raise ForbiddenError(
+            "Uzaktan uygulama baslatma kapali. Bilgisayarin kendi PhoneShare panelinden acilabilir."
+        )
     app = await get_app(session, app_id)
     if not app.enabled:
         raise ValidationError("Uygulama devre disi.")

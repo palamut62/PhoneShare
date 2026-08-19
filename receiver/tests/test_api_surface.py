@@ -175,7 +175,7 @@ class TestApps:
         assert created.status_code == 201
         app_id = created.json()["id"]
         response = client.post(f"/api/apps/{app_id}/launch")
-        assert response.status_code == 422
+        assert response.status_code == 403
 
     def test_launch_subprocess_guvenli_cagrilir(
         self, client, state, tmp_path: Path, monkeypatch

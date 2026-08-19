@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.errors import NotFoundError, ValidationError
+from ...core.errors import ForbiddenError, NotFoundError, ValidationError
 from ...core.state import ReceiverState
 from ...models import Device
 from ...security.paths import is_within
@@ -54,7 +54,9 @@ async def list_files(
 ) -> dict:
     """Etkin hedefleri veya secilen hedefin bir klasorundeki girdileri listeler."""
     if not state.config.remote_browse_enabled:
-        raise ValidationError("Uzaktan dosya erisimi kapali.")
+        raise ForbiddenError(
+            "Uzaktan dosya erisimi kapali. Bilgisayarin kendi PhoneShare panelinden acilabilir."
+        )
     if target_id is None:
         from ...services.targets import list_targets
 
@@ -119,7 +121,9 @@ async def download_file(
 ) -> FileResponse:
     """Etkin hedef icindeki tek bir dosyayi telefona indirir."""
     if not state.config.remote_browse_enabled:
-        raise ValidationError("Uzaktan dosya erisimi kapali.")
+        raise ForbiddenError(
+            "Uzaktan dosya erisimi kapali. Bilgisayarin kendi PhoneShare panelinden acilabilir."
+        )
     target = await get_target(session, target_id)
     if not target.enabled:
         raise NotFoundError("Paylasilan klasor bulunamadi.")

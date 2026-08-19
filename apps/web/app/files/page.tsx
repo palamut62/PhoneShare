@@ -7,6 +7,18 @@ import * as React from "react";
 import { useApp } from "@/components/app-providers";
 import { AppShell } from "@/components/app-shell";
 import { downloadFile, getFiles } from "@/lib/api/client";
+import { UploadError } from "@/lib/upload/errors";
+
+function messageForError(error: unknown, isTurkish: boolean): string {
+  if (error instanceof UploadError && error.code === "forbidden") {
+    return isTurkish
+      ? "Uzaktan dosya erişimi bu bilgisayarda kapalı. Bilgisayarın kendi PhoneShare panelinden \"Uzaktan dosya erişimi\" ayarını açabilirsiniz."
+      : "Remote file access is disabled on this computer. Enable \"Remote file access\" from the computer's own PhoneShare panel.";
+  }
+  return isTurkish
+    ? "Dosyalar alınamadı. Bilgisayar bağlantısını kontrol edin."
+    : "Could not load files. Check the computer connection.";
+}
 
 function formatBytes(size: number | null, locale: string): string {
   if (size === null) return "";
@@ -48,8 +60,8 @@ function FilesScreen() {
       const result = await getFiles(session.token, targetId, path);
       setEntries(result.entries);
       if (result.target_name) setTargetName(result.target_name);
-    } catch {
-      setError(isTurkish ? "Dosyalar alınamadı. Bilgisayar bağlantısını kontrol edin." : "Could not load files. Check the computer connection.");
+    } catch (err) {
+      setError(messageForError(err, isTurkish));
     } finally {
       setLoading(false);
     }
@@ -82,8 +94,12 @@ function FilesScreen() {
     setError("");
     try {
       await downloadFile(session.token, targetId, entry.path);
-    } catch {
-      setError(isTurkish ? "Dosya indirilemedi." : "The file could not be downloaded.");
+    } catch (err) {
+      if (err instanceof UploadError && err.code === "forbidden") {
+        setError(messageForError(err, isTurkish));
+      } else {
+        setError(isTurkish ? "Dosya indirilemedi." : "The file could not be downloaded.");
+      }
     } finally {
       setDownloading("");
     }

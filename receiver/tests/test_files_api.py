@@ -77,9 +77,9 @@ def test_remote_browse_disabled_by_default(client, paired, belgeler: str, state)
     state.config.remote_browse_enabled = False
 
     listing = client.get("/api/files", params={"target_id": belgeler})
-    assert listing.status_code == 422
+    assert listing.status_code == 403
 
     download = client.get(
         "/api/files/download", params={"target_id": belgeler, "path": "belge.txt"}
     )
-    assert download.status_code == 422
+    assert download.status_code == 403
