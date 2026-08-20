@@ -275,6 +275,13 @@ pub fn pick_file(app: AppHandle, title: Option<String>) -> Option<String> {
         .map(|path| path.to_string_lossy().to_string())
 }
 
+/// PC'de kurulu uygulamalarin listesi ("Add app" dialogu). Tarama birkac yuz ms
+/// surebilir; Tauri komutlari zaten ayri thread'de calisir, `async` gerekmez.
+#[tauri::command]
+pub fn list_installed_apps() -> Vec<crate::apps::InstalledApp> {
+    crate::apps::list_installed()
+}
+
 #[tauri::command]
 pub fn ensure_folder(path: String) -> Result<String, String> {
     let normalized = paths::normalize(&path).map_err(|err| err.message().to_string())?;

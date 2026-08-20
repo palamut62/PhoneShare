@@ -8,6 +8,7 @@
 //! - `--minimized` ile baslarsa (autostart kaydi) pencere hic acilmaz (PRD §7).
 //! - Cikarken sidecar mutlaka durdurulur; zombi surec birakilmaz.
 
+mod apps;
 mod autostart;
 mod commands;
 mod config;
@@ -59,6 +60,7 @@ pub fn run() {
             commands::report_status,
             commands::pick_folder,
             commands::pick_file,
+            commands::list_installed_apps,
             commands::ensure_folder,
             commands::open_path,
             commands::reveal_in_explorer,

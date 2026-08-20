@@ -150,6 +150,19 @@ export function pickFile(title?: string): Promise<string | null> {
   return invokeTauri<string>("pick_file", { title: title ?? null });
 }
 
+/** PC'de kurulu bir uygulama adayi ("Add app" dialogu). */
+export interface InstalledApp {
+  id: string;
+  name: string;
+  path: string;
+  kind: string;
+}
+
+/** PC'de kurulu tum uygulamalari listeler. Tauri yoksa veya tarama basarisizsa `null` doner. */
+export function listInstalledApps(): Promise<InstalledApp[] | null> {
+  return invokeTauri<InstalledApp[]>("list_installed_apps");
+}
+
 /** Yolu normalize eder ve klasoru olusturur; normalize edilmis yolu doner. */
 export function ensureFolder(path: string): Promise<string | null> {
   return invokeTauri<string>("ensure_folder", { path });

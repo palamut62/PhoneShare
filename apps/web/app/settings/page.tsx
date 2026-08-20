@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, Github, Plus, Star, Trash2 } from "lucide-react";
 import * as React from "react";
 
+import { AppPickerDialog } from "@/components/app-picker-dialog";
 import { useApp } from "@/components/app-providers";
 import { useOpenPairDialog } from "@/components/app-shell";
 import { StatusHeader } from "@/components/status-header";
@@ -742,6 +743,7 @@ function AppsCard() {
   const settingsQuery = useReceiverSettings();
   const desktop = isTauri();
   const [error, setError] = React.useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const invalidateApps = React.useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["apps"] });
@@ -757,21 +759,29 @@ function AppsCard() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async () => {
-      const picked = await pickFile("Select an application (.exe) or shortcut (.lnk)");
-      if (!picked) return null;
-      const segments = picked.split(/[\\/]/).filter(Boolean);
-      const fileName = segments[segments.length - 1] ?? "App";
-      const name = fileName.replace(/\.(exe|lnk)$/i, "");
-      return createApp(token, { name, exe_path: picked });
-    },
-    onSuccess: (created) => {
-      if (!created) return;
+    mutationFn: (app: { name: string; exe_path: string }) => createApp(token, app),
+    onSuccess: () => {
       setError(null);
       invalidateApps();
     },
     onError: () => setError("The app could not be added. Only .exe or .lnk (shortcut) files can be selected."),
   });
+
+  const addFromPath = React.useCallback(
+    (picked: string) => {
+      const segments = picked.split(/[\\/]/).filter(Boolean);
+      const fileName = segments[segments.length - 1] ?? "App";
+      const name = fileName.replace(/\.(exe|lnk)$/i, "");
+      addMutation.mutate({ name, exe_path: picked });
+    },
+    [addMutation],
+  );
+
+  const browseForApp = React.useCallback(async () => {
+    const picked = await pickFile("Select an application (.exe) or shortcut (.lnk)");
+    if (!picked) return;
+    addFromPath(picked);
+  }, [addFromPath]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteApp(token, id),
@@ -832,7 +842,7 @@ function AppsCard() {
       {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
 
       {desktop ? (
-        <Button disabled={busy} className="mt-3" onClick={() => addMutation.mutate()}>
+        <Button disabled={busy} className="mt-3" onClick={() => setPickerOpen(true)}>
           <Plus aria-hidden className="h-4 w-4" />
           Add app
         </Button>
@@ -841,6 +851,20 @@ function AppsCard() {
           Apps can only be added from the PhoneShare desktop app on your computer.
         </p>
       )}
+
+      {desktop ? (
+        <AppPickerDialog
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(app) =>
+            addMutation.mutate({ name: app.name.replace(/\.(exe|lnk)$/i, ""), exe_path: app.path })
+          }
+          onBrowse={() => {
+            setPickerOpen(false);
+            void browseForApp();
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
