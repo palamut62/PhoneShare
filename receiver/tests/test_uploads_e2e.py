@@ -288,7 +288,12 @@ class TestLimits:
         """PRD §52 — tek dosya siniri asilirsa 413 ve kullanici dostu mesaj."""
         response = client.post(
             "/api/uploads/init",
-            json={"filename": "dev.bin", "size": 9 * 1024 * 1024, "target_id": belgeler},
+            json={
+                "filename": "dev.bin",
+                "size": 9 * 1024 * 1024,
+                "target_id": belgeler,
+                "sha256": sha256_bytes(b"dev"),
+            },
         )
         assert response.status_code == 413
         body = response.json()
@@ -303,6 +308,7 @@ class TestLimits:
                     "filename": f"parca{index}.bin",
                     "size": 8 * 1024 * 1024,
                     "target_id": belgeler,
+                    "sha256": sha256_bytes(f"parca{index}".encode()),
                 },
             )
             if response.status_code == 413:
@@ -323,7 +329,12 @@ class TestLimits:
         monkeypatch.setattr(shutil, "disk_usage", fake)
         response = client.post(
             "/api/uploads/init",
-            json={"filename": "buyuk.bin", "size": 4 * 1024 * 1024, "target_id": belgeler},
+            json={
+                "filename": "buyuk.bin",
+                "size": 4 * 1024 * 1024,
+                "target_id": belgeler,
+                "sha256": sha256_bytes(b"buyuk"),
+            },
         )
         assert response.status_code == 507
         assert response.json() == {

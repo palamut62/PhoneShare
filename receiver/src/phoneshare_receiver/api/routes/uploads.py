@@ -88,6 +88,12 @@ async def upload_chunk(
 
     content_type = (request.headers.get("content-type") or "").lower()
     if content_type.startswith("multipart/form-data"):
+        # Starlette `form()` govdeyi tamamen okuyup diske spool ETTIKTEN sonra
+        # asagidaki boyut kontrolune gelir; kotayi atlayan disk doldurma vektorunu
+        # kapatmak icin parse baslamadan once reddet (PRD §83 oversized request).
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > limit:
+            raise TooLargeError("Gonderilen parca cok buyuk.")
         form = await request.form()
         raw_index = form.get("chunk_index")
         raw_hash = form.get("chunk_hash")

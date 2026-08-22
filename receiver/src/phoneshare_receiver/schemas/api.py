@@ -128,13 +128,13 @@ class UploadInitRequest(ApiModel):
     size: int = Field(ge=0)
     mime_type: str | None = Field(default=None, max_length=255)
     target_id: str | None = Field(default=None, max_length=64)
-    sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    # PRD §29 — butunluk garantisi icin istemci hash'i ZORUNLU; hash'siz
+    # transfer "dogrulanmis" gorunmesin diye opsiyonel bırakilmaz.
+    sha256: str = Field(min_length=64, max_length=64)
 
     @field_validator("sha256")
     @classmethod
-    def _hex(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
+    def _hex(cls, value: str) -> str:
         lowered = value.lower()
         if any(ch not in "0123456789abcdef" for ch in lowered):
             raise ValueError("sha256 onaltilik olmalidir.")
