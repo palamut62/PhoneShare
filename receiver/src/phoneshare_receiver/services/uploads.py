@@ -10,6 +10,7 @@ Akis:
 
 from __future__ import annotations
 
+import asyncio
 import math
 import secrets
 from dataclasses import dataclass
@@ -30,7 +31,7 @@ from ..core.errors import (
 from ..core.logging_setup import get_logger
 from ..models import Device, Transfer, Upload, UploadChunk
 from ..security import audit
-from ..security.paths import UnsafePathError, sanitize_file_name
+from ..security.paths import sanitize_file_name
 from ..storage.files import DiskQuotaError, atomic_move, ensure_capacity, plan_placement
 from ..storage.temp import TempStore, sha256_of
 from . import rule_engine, targets
@@ -39,6 +40,10 @@ from .naming import apply_naming_template
 log = get_logger("transfer")
 
 ACTIVE_STATUSES = ("PREPARING", "UPLOADING")
+
+#: Tamamlama adimini (yerlesim karari + tasima) serilestirir; aksi halde iki
+#: eszamanli transfer ayni hedef ada talip olup cakisma politikasini atlayabilir.
+_completion_lock = asyncio.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +107,13 @@ async def init_upload(
     target_row, target_dir = await targets.resolve_target_dir(session, config, resolved_target_id)
 
     # --- PRD §28: ayni dosya icin devam eden upload var mi? ---
+    # Hedef klasor de eslesmeli; aksi halde kullanici farkli hedef secince
+    # sessizce eski hedefe devam edilir.
+    target_cond = (
+        Upload.target_id.is_(resolved_target_id)
+        if resolved_target_id is None
+        else Upload.target_id == resolved_target_id
+    )
     existing = (
         await session.execute(
             select(Upload)
@@ -109,7 +121,8 @@ async def init_upload(
                 Upload.device_id == device.id,
                 Upload.filename == safe_name,
                 Upload.size == size,
-                Upload.sha256.is_(sha256) if sha256 is None else Upload.sha256 == sha256,
+                Upload.sha256 == sha256,
+                target_cond,
                 Upload.status.in_(ACTIVE_STATUSES),
             )
             .order_by(Upload.created_at.desc())
@@ -297,7 +310,9 @@ async def complete_upload(
             session, temp_store, upload, transfer, "Aktarim tamamlanamadi.", detail=str(exc)
         )
 
-    if size != upload.size or (upload.sha256 and digest != upload.sha256):
+    # sha256 init'te zorunlu (PRD §29); eski hash'siz kayitlarda guvenli tarafa
+    # dusup aktarimi reddeder.
+    if size != upload.size or digest != upload.sha256:
         await _fail(
             session,
             temp_store,
@@ -309,38 +324,43 @@ async def complete_upload(
         raise ChecksumError()
 
     # --- hedef klasor + adlandirma + cakisma politikasi ---
-    target_row, target_dir = await targets.resolve_target_dir(session, config, upload.target_id)
-    # Every completed transfer is grouped under the computer's local calendar date.
-    # Reuse the same directory for all files received on the same day.
-    target_dir = target_dir / datetime.now().date().isoformat()
-    target_dir.mkdir(parents=True, exist_ok=True)
+    # Kilit altinda: exists() kontrolu ile os.replace arasina baska bir
+    # tamamlama giremez (rename/skip politikanin yarista atlanmamasi icin).
+    async with _completion_lock:
+        try:
+            target_row, target_dir = await targets.resolve_target_dir(
+                session, config, upload.target_id
+            )
+            # Every completed transfer is grouped under the computer's local calendar date.
+            # Reuse the same directory for all files received on the same day.
+            target_dir = target_dir / datetime.now().date().isoformat()
+            target_dir.mkdir(parents=True, exist_ok=True)
 
-    final_name = apply_naming_template(
-        config.naming_template,
-        upload.filename,
-        device_name=device.name,
-        folder_name=target_row.name if target_row else "",
-    )
+            final_name = apply_naming_template(
+                config.naming_template,
+                upload.filename,
+                device_name=device.name,
+                folder_name=target_row.name if target_row else "",
+            )
 
-    placement = plan_placement(target_dir, final_name, config.conflict_policy)
-    if placement.skipped or placement.path is None:
-        temp_store.cleanup(upload_id)
-        upload.status = "CANCELLED"
-        if transfer is not None:
-            transfer.status = "CANCELLED"
-            transfer.completed_at = _now()
-            transfer.error_message = "Ayni adli dosya zaten var, atlandi."
-        await session.flush()
-        return upload, transfer  # type: ignore[return-value]
+            placement = plan_placement(target_dir, final_name, config.conflict_policy)
+            if placement.skipped or placement.path is None:
+                temp_store.cleanup(upload_id)
+                upload.status = "CANCELLED"
+                if transfer is not None:
+                    transfer.status = "CANCELLED"
+                    transfer.completed_at = _now()
+                    transfer.error_message = "Ayni adli dosya zaten var, atlandi."
+                await session.flush()
+                return upload, transfer  # type: ignore[return-value]
 
-    roots = targets.effective_roots(config)
-    try:
-        stored = atomic_move(assembled, placement.path, roots)
-    except (OSError, PermissionError, UnsafePathError) as exc:
-        await _fail(
-            session, temp_store, upload, transfer, "Dosya kaydedilemedi.", detail=str(exc)
-        )
-        raise ConflictError("Dosya kaydedilemedi.") from exc
+            roots = targets.effective_roots(config)
+            stored = atomic_move(assembled, placement.path, roots)
+        except Exception as exc:  # noqa: BLE001 - VERIFYING'de takilma kalmasin
+            await _fail(
+                session, temp_store, upload, transfer, "Dosya kaydedilemedi.", detail=str(exc)
+            )
+            raise ConflictError("Dosya kaydedilemedi.") from exc
 
     temp_store.cleanup(upload_id)
 

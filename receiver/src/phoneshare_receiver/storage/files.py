@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import re
 import shutil
@@ -134,7 +135,11 @@ def atomic_move(source: Path, destination: Path, allowed_roots: list[Path]) -> P
     try:
         os.replace(source, destination)
         return destination
-    except OSError:
+    except OSError as exc:
+        # Yalnizca gercek "farkli surucu/volume" durumu icin kopyala-degistir-sil;
+        # baska bir OSError ise (izin, AV kilidi vb.) orijinal hatayla dus.
+        if exc.errno != errno.EXDEV and getattr(exc, "winerror", None) != 17:
+            raise
         # Farkli surucu/volume: gecici ada kopyalayip atomik olarak yerine koy.
         tmp = destination.with_name(destination.name + ".incoming")
         shutil.copyfile(source, tmp)
