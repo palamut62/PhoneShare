@@ -1,6 +1,6 @@
 "use client";
 
-import { MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, PRODUCT_OWNER } from "@phoneshare/shared-config";
+import { PRODUCT_OWNER } from "@phoneshare/shared-config";
 import type { RuleCreateRequest, RuleResponse } from "@phoneshare/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, Github, Plus, Trash2 } from "lucide-react";
@@ -26,12 +26,7 @@ import {
   setSaveFolder,
 } from "@/lib/tauri";
 import type { Language, ThemePreference } from "@/lib/storage/session";
-import { formatBytes } from "@/lib/upload/speed";
 import { cn } from "@/lib/utils";
-
-const CHUNK_OPTIONS = [1, 2, 4, 8, 16, 32].map((mb) => mb * 1024 * 1024).filter(
-  (value) => value >= MIN_CHUNK_SIZE && value <= MAX_CHUNK_SIZE,
-);
 
 export default function SettingsPage() {
   return (
@@ -42,7 +37,7 @@ export default function SettingsPage() {
 }
 
 function SettingsScreen() {
-  const { t, locale, preferences, savePreferences, session, resetSession } = useApp();
+  const { t, preferences, savePreferences, session, resetSession } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
   const [confirmReset, setConfirmReset] = React.useState(false);
   const openPairDialog = useOpenPairDialog();
@@ -107,23 +102,6 @@ function SettingsScreen() {
               onCheckedChange={(value) => void savePreferences({ rememberLastTarget: value })}
               label={t.rememberTarget}
             />
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            <Label htmlFor="chunk-size">{t.chunkSize}</Label>
-            <Select
-              id="chunk-size"
-              value={String(preferences.chunkSize)}
-              onChange={(event) => void savePreferences({ chunkSize: Number(event.target.value) })}
-            >
-              {CHUNK_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {formatBytes(value, locale)}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              The computer&apos;s preferred chunk size takes priority when available.
-            </p>
           </div>
         </Card>
 

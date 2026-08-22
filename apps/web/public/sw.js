@@ -15,6 +15,8 @@ const SHELL_URLS = [
   "/",
   "/transfers/",
   "/settings/",
+  "/files/",
+  "/stats/",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

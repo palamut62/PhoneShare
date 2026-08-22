@@ -3,8 +3,6 @@
  * Token tarayici depolamasinda tutulur; hicbir yerde loglanmaz veya URL'ye eklenmez.
  */
 
-import { DEFAULT_CHUNK_SIZE } from "@phoneshare/shared-config";
-
 import { idbDelete, idbGet, idbSet } from "./idb";
 
 const SESSION_KEY = "device_session";
@@ -45,8 +43,6 @@ export interface Preferences {
   /** PRD §73 — varsayilan ACIK. */
   rememberLastTarget: boolean;
   lastTargetId: string | null;
-  /** PRD §27 — istemci tercihi; sunucu yine de kendi degerini dayatabilir. */
-  chunkSize: number;
   /** Ana ekrana ekleme rehberi kapatildi mi. */
   installGuideDismissed: boolean;
   /** PRD §74 — hizli gonderim presetleri. */
@@ -59,7 +55,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   quickSend: false,
   rememberLastTarget: true,
   lastTargetId: null,
-  chunkSize: DEFAULT_CHUNK_SIZE,
   installGuideDismissed: false,
   presets: [],
 };
