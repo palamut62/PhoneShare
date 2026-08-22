@@ -18,6 +18,8 @@ export interface UseUploadQueue {
   clearFinished: () => void;
   summary: ReturnType<UploadQueue["summary"]>;
   active: boolean;
+  /** iOS arka plandan donuste otomatik devam ettirildiginde kisa sureli bildirim. */
+  resumedNotice: string | null;
 }
 
 export function useUploadQueue(deviceName: string | null, maxFileBytes?: number): UseUploadQueue {
@@ -53,6 +55,50 @@ export function useUploadQueue(deviceName: string | null, maxFileBytes?: number)
     })();
   }, [queue]);
 
+  const [resumedNotice, setResumedNotice] = React.useState<string | null>(null);
+
+  // iOS Safari sekme arka plana alindiginda JS calismasi durur ve upload'lar kesilir.
+  // Sekme tekrar gorunur/online oldugunda dosya tutamaci hala mevcut olan takilan
+  // isleri otomatik olarak tekrar baslatir.
+  React.useEffect(() => {
+    const resume = () => {
+      let resumedCount = 0;
+      for (const item of queue.items()) {
+        if (item.status === "FAILED" && item.hasFileHandle) {
+          if (queue.retry(item.id)) resumedCount += 1;
+        }
+      }
+      // Henuz baslamamis (QUEUED) ama calisan worker'i olmayan isler icin.
+      queue.start();
+      if (resumedCount > 0) {
+        setResumedNotice(
+          resumedCount === 1
+            ? "1 paused transfer resumed automatically."
+            : `${resumedCount} paused transfers resumed automatically.`,
+        );
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") resume();
+    };
+    const onOnline = () => resume();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", onOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [queue]);
+
+  React.useEffect(() => {
+    if (!resumedNotice) return;
+    const timer = window.setTimeout(() => setResumedNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [resumedNotice]);
+
+  // Kuyruk dispose olurken bekleyen (debounced) kalicilik yazimini hemen tamamlar.
+  React.useEffect(() => () => queue.dispose(), [queue]);
+
   const previousStatuses = React.useRef(new Map<string, string>());
   React.useEffect(() => {
     let changed = false;
@@ -80,6 +126,7 @@ export function useUploadQueue(deviceName: string | null, maxFileBytes?: number)
     clearFinished: React.useCallback(() => queue.clearFinished(), [queue]),
     summary: queue.summary(),
     active: items.some((item) => ["QUEUED", "PREPARING", "UPLOADING", "VERIFYING"].includes(item.status)),
+    resumedNotice,
   };
 }
 

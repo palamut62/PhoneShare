@@ -52,6 +52,9 @@ function HomeScreen() {
   const [targetId, setTargetId] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState<File[]>([]);
   const [sendMenuOpen, setSendMenuOpen] = React.useState(false);
+  // Dosya tutamaci kaybolmus (sayfa yenilenmis) bir FAILED oge icin manuel yeniden
+  // deneme akisi: dosya secici acilir, secilen dosya bu id'ye baglanir.
+  const [pendingRetryId, setPendingRetryId] = React.useState<string | null>(null);
 
   // PRD §22/§73 — son kullanilan hedefi hatirla.
   React.useEffect(() => {
@@ -85,6 +88,14 @@ function HomeScreen() {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
       if (files.length === 0) return;
+      // Dosya tutamaci kaybolmus bir FAILED ogenin yeniden denemesi: yeni bir kuyruk
+      // ogesi olusturmadan secilen dosya orijinal ogeye baglanir.
+      if (pendingRetryId) {
+        const retryId = pendingRetryId;
+        setPendingRetryId(null);
+        queue.retry(retryId, files[0]);
+        return;
+      }
       // PRD §23 — Hizli Gonder: onay ekrani atlanir.
       if (preferences.quickSend && targetId && isOnline) {
         send(files, targetId);
@@ -92,7 +103,7 @@ function HomeScreen() {
       }
       setPending(files);
     },
-    [preferences.quickSend, targetId, isOnline, send],
+    [pendingRetryId, queue, preferences.quickSend, targetId, isOnline, send],
   );
 
   return (
@@ -182,12 +193,21 @@ function HomeScreen() {
           />
         </Card>
 
+        {queue.resumedNotice ? (
+          <div role="status" className="rounded-2xl border border-primary/40 bg-primary/5 p-3">
+            <p className="text-sm text-foreground">{queue.resumedNotice}</p>
+          </div>
+        ) : null}
+
         <QueuePanel
           items={queue.items}
           summary={queue.summary}
           onCancel={queue.cancel}
           onRetry={(id) => {
-            if (!queue.retry(id)) fileInput.current?.click();
+            if (!queue.retry(id)) {
+              setPendingRetryId(id);
+              fileInput.current?.click();
+            }
           }}
           onClear={queue.clearFinished}
           locale={locale}

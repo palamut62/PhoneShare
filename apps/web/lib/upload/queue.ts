@@ -71,12 +71,15 @@ interface Entry {
   controller: AbortController | null;
 }
 
+const PERSIST_DEBOUNCE_MS = 500;
+
 export class UploadQueue {
   private entries = new Map<string, Entry>();
   private order: string[] = [];
   private listeners = new Set<Listener>();
   private running = 0;
   private counter = 0;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private options: QueueOptions) {}
 
@@ -122,7 +125,7 @@ export class UploadQueue {
     };
     this.entries.set(id, { item, file, controller: null });
     this.order.push(id);
-    this.emit();
+    this.emit(true);
     return item;
   }
 
@@ -150,7 +153,7 @@ export class UploadQueue {
       this.entries.set(stored.id, { item, file: null, controller: null });
       this.order.push(stored.id);
     }
-    this.emit();
+    this.emit(true);
   }
 
   /** Bekleyen isleri calistirir. */
@@ -207,13 +210,18 @@ export class UploadQueue {
     entry.controller?.abort();
     this.entries.delete(id);
     this.order = this.order.filter((existing) => existing !== id);
-    this.emit();
+    this.emit(true);
   }
 
   clearFinished(): void {
     for (const item of this.items()) {
       if (isTerminal(item.status)) this.remove(item.id);
     }
+  }
+
+  /** Bekleyen (debounced) kalicilik yazimini hemen tamamlar; kuyruk dispose olurken cagrilir. */
+  dispose(): void {
+    this.flushPersist(this.items());
   }
 
   /** Toplu ozet (PRD §25). */
@@ -286,14 +294,32 @@ export class UploadQueue {
   private patch(id: string, patch: Partial<QueueItem>): void {
     const entry = this.entries.get(id);
     if (!entry) return;
+    const wasTerminal = isTerminal(entry.item.status);
     entry.item = { ...entry.item, ...patch, updatedAt: this.now() };
-    this.emit();
+    const nowTerminal = isTerminal(entry.item.status);
+    // Terminal duruma (COMPLETED/FAILED/CANCELLED) gecis aninda yazilir; ara ilerleme
+    // guncellemeleri debounce edilir (yuzlerce IndexedDB yazimini onlemek icin).
+    this.emit(!wasTerminal && nowTerminal);
   }
 
-  private emit(): void {
+  private emit(immediate = false): void {
     const items = this.items();
-    this.options.persist?.(items);
     for (const listener of this.listeners) listener(items);
+    if (!this.options.persist) return;
+    if (immediate) {
+      this.flushPersist(items);
+      return;
+    }
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => this.flushPersist(this.items()), PERSIST_DEBOUNCE_MS);
+  }
+
+  private flushPersist(items: QueueItem[]): void {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    this.options.persist?.(items);
   }
 
   private now(): number {
