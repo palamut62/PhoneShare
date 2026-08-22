@@ -72,6 +72,30 @@ def require_loopback_client(request: Request) -> None:
         )
 
 
+async def _auth_failure(
+    request: Request,
+    state: ReceiverState,
+    session: AsyncSession,
+    reason: str,
+    *,
+    message: str = "Yetkisiz.",
+) -> None:
+    """Basarisiz girisim denemesini IP bazli sinirlar, denetim kaydina yazip 401 dondurur.
+
+    Sinir asilirsa audit yazimi hic yapilmadan 429 donulur (yazma amplifikasyonu onlenir).
+    """
+    try:
+        state.auth_failures.check(client_key(request))
+    except RateLimitError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Cok fazla basarisiz girisim denendi. Lutfen biraz bekleyin.",
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
+    await audit.record_audit(session, audit.AUTH_FAILED, detail={"reason": reason})
+    raise HTTPException(status_code=401, detail=message)
+
+
 async def current_device(
     request: Request,
     authorization: str | None = Header(default=None),
@@ -84,19 +108,16 @@ async def current_device(
         try:
             token = extract_bearer(authorization)
         except AuthError as exc:
-            await audit.record_audit(session, audit.AUTH_FAILED, detail={"reason": "invalid_bearer"})
-            raise HTTPException(status_code=401, detail=exc.message) from exc
+            await _auth_failure(request, state, session, "invalid_bearer", message=exc.message)
     if not token:
-        await audit.record_audit(session, audit.AUTH_FAILED, detail={"reason": "missing_auth"})
-        raise HTTPException(status_code=401, detail="Yetkisiz.")
+        await _auth_failure(request, state, session, "missing_auth")
 
     device = (
         await session.execute(select(Device).where(Device.token_hash == hash_token(token)))
     ).scalar_one_or_none()
 
     if device is None:
-        await audit.record_audit(session, audit.AUTH_FAILED, detail={"reason": "unknown_token"})
-        raise HTTPException(status_code=401, detail="Yetkisiz.")
+        await _auth_failure(request, state, session, "unknown_token")
     if not device.enabled:
         await audit.record_audit(
             session, audit.AUTH_FAILED, device_id=device.id, detail={"reason": "device_disabled"}

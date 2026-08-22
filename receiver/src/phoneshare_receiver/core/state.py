@@ -26,6 +26,9 @@ class ReceiverState:
         self.requests = RequestRateLimiter(limit=config.rate_limit_requests_per_min, window=60.0)
         # Eslestirme icin cok daha siki limit (PRD §83 brute force).
         self.pairing_requests = RequestRateLimiter(limit=10, window=60.0)
+        # Basarisiz kimlik dogrulama denemeleri icin IP bazli limit; aksi halde
+        # her yanlis token bir audit kaydi + hash hesabi uretir (yazma amplifikasyonu).
+        self.auth_failures = RequestRateLimiter(limit=30, window=60.0)
         self.bytes = ByteRateLimiter(config.rate_limit_bytes_per_sec)
         self.started_at = datetime.now(tz=UTC)
 
