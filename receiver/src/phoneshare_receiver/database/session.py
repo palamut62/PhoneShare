@@ -33,6 +33,8 @@ class Database:
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA foreign_keys=ON")
             cur.execute("PRAGMA journal_mode=WAL")
+            # Eszamanli yazimlarda "database is locked" yerine kisa bekleme.
+            cur.execute("PRAGMA busy_timeout=5000")
             cur.close()
 
     async def create_all(self) -> None:
