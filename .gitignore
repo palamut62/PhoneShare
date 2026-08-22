@@ -15,7 +15,7 @@ __pycache__/
 .venv/
 target/
 build/
-*.spec
+/phoneshare-receiver.spec
 .playwright-cli/
 .playwright-mcp/
 .tmp-pw/
@@ -40,4 +40,4 @@ opencode.json
 .github/copilot-instructions.md
 .specstory/
 .continue/
-apps/desktop/src-tauri/binaries/phoneshare-receiver.exe
+apps/desktop/src-tauri/binaries/*.exe
