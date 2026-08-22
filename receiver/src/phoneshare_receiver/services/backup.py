@@ -25,12 +25,13 @@ from pathlib import Path
 
 from .. import __version__
 from ..core.config import AgentConfig, app_data_dir, backups_dir, config_file, data_dir
+from ..core.config import db_path as core_db_path
 from ..core.logging_setup import get_logger
 
 log = get_logger("system")
 
 MANIFEST_NAME = "manifest.json"
-DB_ENTRY = "agent.db"
+DB_ENTRY = "phoneshare.db"
 CONFIG_ENTRY = "config.json"
 #: Yedekten geri yuklenirken bu dosyalar ASLA yazilmaz (guvenlik).
 EXCLUDED_ENTRIES = frozenset({"secrets.bin"})
@@ -68,7 +69,7 @@ class BackupManager:
         backup_dir: Path | None = None,
         keep: int = 7,
     ) -> None:
-        self.db_path = db_path or (data_dir() / "agent.db")
+        self.db_path = db_path or core_db_path()
         self.config_path = config_path or config_file()
         self.backup_dir = backup_dir or backups_dir()
         self.keep = max(1, keep)
@@ -77,7 +78,7 @@ class BackupManager:
     def from_config(cls, config: AgentConfig, base_dir: Path | None = None) -> BackupManager:
         base = base_dir or data_dir()
         return cls(
-            db_path=base / "agent.db",
+            db_path=base / "phoneshare.db",
             config_path=config_file(),
             backup_dir=Path(config.backup_dir) if config.backup_dir else backups_dir(),
             keep=config.backup_keep,
@@ -136,7 +137,7 @@ class BackupManager:
 
     def _snapshot_db(self) -> Path:
         """SQLite backup API'si ile tutarli bir kopya alir."""
-        tmp = Path(tempfile.mkdtemp(prefix="phoneshare-bak-")) / "agent.db"
+        tmp = Path(tempfile.mkdtemp(prefix="phoneshare-bak-")) / DB_ENTRY
         source = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
         try:
             target = sqlite3.connect(str(tmp))
@@ -207,7 +208,7 @@ class BackupManager:
             with zipfile.ZipFile(archive) as zf:
                 names = set(zf.namelist())
                 for entry, destination in (
-                    (DB_ENTRY, target_db_dir / "agent.db"),
+                    (DB_ENTRY, target_db_dir / DB_ENTRY),
                     (CONFIG_ENTRY, self.config_path),
                 ):
                     if entry not in names or entry in EXCLUDED_ENTRIES:
