@@ -4,9 +4,10 @@ import { ChevronRight, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
+import { DesktopSkinView } from "@/components/skins";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { useDevices } from "@/hooks/use-receiver";
+import { useDevices, useHealth, useTransfers } from "@/hooks/use-receiver";
 
 interface LocalPanelScreenProps {
   /** "Yeni Telefon Ekle" dialogunu (QR + 6 haneli kod) acar. */
@@ -20,11 +21,32 @@ interface LocalPanelScreenProps {
  * Buradaki kullanici bir telefon DEGILDIR: kod girmez, kod URETIR.
  */
 export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: LocalPanelScreenProps) {
-  const { t } = useApp();
+  const { t, locale, preferences } = useApp();
   const devices = useDevices();
+  const health = useHealth();
+  const transfers = useTransfers({ limit: 10 });
   // Erisimi iptal edilen cihazlar gecmis/denetim icin veritabaninda kalir,
   // ancak panelde kayitli telefon olarak gosterilmez.
   const registeredDevices = (devices.data ?? []).filter((device) => device.enabled);
+
+  // Ayarlardan secilen PC paneli stili. Klasik disindaki stiller ayni gercek
+  // veriyle beslenir; hicbir eylem kaybolmaz.
+  if (preferences.desktopSkin !== "classic") {
+    return (
+      <DesktopSkinView
+        skin={preferences.desktopSkin}
+        deviceName={deviceName ?? health.deviceName}
+        isOnline={health.isOnline}
+        version={health.version}
+        addresses={health.addresses}
+        devices={registeredDevices}
+        transfers={transfers.data?.items ?? []}
+        onAddDevice={onAddDevice}
+        onSelectDevice={onSelectDevice}
+        locale={locale}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-8">

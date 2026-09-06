@@ -28,6 +28,14 @@ export interface DeviceSession {
 export type ThemePreference = "system" | "light" | "dark";
 export type Language = "tr" | "en";
 
+/** Telefon ekraninin gorunum stili (PRD §70 dokunma hedefleri her stilde korunur). */
+export type MobileSkin = "classic" | "radar" | "chunk-hud" | "staging";
+/** PC panelinin gorunum stili. */
+export type DesktopSkin = "classic" | "tray" | "command" | "security";
+
+export const MOBILE_SKINS: readonly MobileSkin[] = ["classic", "radar", "chunk-hud", "staging"];
+export const DESKTOP_SKINS: readonly DesktopSkin[] = ["classic", "tray", "command", "security"];
+
 /** PRD §74 — hizli gonderim preseti; yalnizca yerel tercih (IndexedDB), sunucuya gitmez. */
 export interface SendPreset {
   id: string;
@@ -51,6 +59,10 @@ export interface Preferences {
   installGuideDismissed: boolean;
   /** PRD §74 — hizli gonderim presetleri. */
   presets: SendPreset[];
+  /** Telefon gorunum stili; ayarlardan degistirilir. */
+  mobileSkin: MobileSkin;
+  /** PC paneli gorunum stili; ayarlardan degistirilir. */
+  desktopSkin: DesktopSkin;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -62,6 +74,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   chunkSize: DEFAULT_CHUNK_SIZE,
   installGuideDismissed: false,
   presets: [],
+  mobileSkin: "classic",
+  desktopSkin: "classic",
 };
 
 function readSessionBackup(): DeviceSession | null {
@@ -117,9 +131,23 @@ export async function clearSession(): Promise<void> {
   }
 }
 
+/**
+ * Kayitli tercihleri varsayilanlarla birlestirir.
+ * Bilinmeyen/eski arayuz stili degerleri sessizce `classic`'e duser: bozuk bir
+ * kayitli tercih uygulamayi bos ekrana dusurmemelidir.
+ */
+export function mergePreferences(stored: Partial<Preferences> | null | undefined): Preferences {
+  const merged = { ...DEFAULT_PREFERENCES, ...(stored ?? {}), language: "en" as const };
+  return {
+    ...merged,
+    mobileSkin: MOBILE_SKINS.includes(merged.mobileSkin) ? merged.mobileSkin : "classic",
+    desktopSkin: DESKTOP_SKINS.includes(merged.desktopSkin) ? merged.desktopSkin : "classic",
+  };
+}
+
 export async function getPreferences(): Promise<Preferences> {
   const stored = await idbGet<Partial<Preferences>>(PREFS_KEY);
-  return { ...DEFAULT_PREFERENCES, ...(stored ?? {}), language: "en" };
+  return mergePreferences(stored);
 }
 
 export function setPreferences(preferences: Preferences): Promise<void> {

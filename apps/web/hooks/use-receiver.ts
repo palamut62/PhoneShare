@@ -32,6 +32,8 @@ export function useHealth() {
     isChecking: query.isLoading,
     deviceName: query.data?.device_name ?? null,
     version: query.data?.version ?? null,
+    /** Telefonun ulasabilecegi yayin adresleri (PC paneli gorunumleri kullanir). */
+    addresses: query.data?.addresses ?? [],
     /** PRD §12 — istek loopback'ten geldiyse burasi PC'nin kendi panelidir. */
     isLocalClient: query.data?.is_local_client === true,
     refetch: query.refetch,

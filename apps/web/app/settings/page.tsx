@@ -16,7 +16,15 @@ import { useHealth, useRules, useTargets } from "@/hooks/use-receiver";
 import { createRule, deleteRule, removeDevice, updateRule } from "@/lib/api/client";
 import type { Dictionary } from "@/lib/i18n";
 import { getTailscaleStatus, isTauri, setRemoteAccess } from "@/lib/tauri";
-import type { Language, ThemePreference } from "@/lib/storage/session";
+import { DESKTOP_SKIN_LABELS, MOBILE_SKIN_LABELS } from "@/components/skins";
+import {
+  DESKTOP_SKINS,
+  MOBILE_SKINS,
+  type DesktopSkin,
+  type Language,
+  type MobileSkin,
+  type ThemePreference,
+} from "@/lib/storage/session";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -63,6 +71,45 @@ function SettingsScreen() {
                 <option value="light">{t.light}</option>
                 <option value="dark">{t.dark}</option>
               </Select>
+            </div>
+            {/* Arayuz stilleri: telefon ve PC paneli bagimsiz secilir. */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="mobile-skin">Phone interface</Label>
+              <Select
+                id="mobile-skin"
+                value={preferences.mobileSkin}
+                onChange={(event) =>
+                  void savePreferences({ mobileSkin: event.target.value as MobileSkin })
+                }
+              >
+                {MOBILE_SKINS.map((skin) => (
+                  <option key={skin} value={skin}>
+                    {MOBILE_SKIN_LABELS[skin]}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Applies to the send screen on the phone. All styles use the same transfer engine.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="desktop-skin">Computer panel interface</Label>
+              <Select
+                id="desktop-skin"
+                value={preferences.desktopSkin}
+                onChange={(event) =>
+                  void savePreferences({ desktopSkin: event.target.value as DesktopSkin })
+                }
+              >
+                {DESKTOP_SKINS.map((skin) => (
+                  <option key={skin} value={skin}>
+                    {DESKTOP_SKIN_LABELS[skin]}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Applies to this computer&apos;s own panel. Pairing and device management stay the same.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="language">{t.language}</Label>

@@ -9,6 +9,7 @@ import { AppShell, useOpenPairDialog } from "@/components/app-shell";
 import { FileReview } from "@/components/file-review";
 import { InstallGuide } from "@/components/install-guide";
 import { QueuePanel } from "@/components/queue-panel";
+import { DesktopSkinView, MobileSkin } from "@/components/skins";
 import { StatusHeader } from "@/components/status-header";
 import { TargetPicker } from "@/components/target-picker";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import {
   useTransfers,
 } from "@/hooks/use-receiver";
 import { useUploadQueue } from "@/hooks/use-upload-queue";
+import { isLocalPanel } from "@/lib/panel";
+import { isTauri } from "@/lib/tauri";
 import { formatBytes } from "@/lib/upload/speed";
 import { formatDateTime } from "@/lib/utils";
 
@@ -34,8 +37,9 @@ export default function HomePage() {
 }
 
 function HomeScreen() {
-  const { t, locale, preferences, savePreferences } = useApp();
-  const { isOnline, isChecking, deviceName } = useHealth();
+  const { t, locale, preferences, savePreferences, enterDesktopSession } = useApp();
+  const health = useHealth();
+  const { isOnline, isChecking, deviceName } = health;
   useReceiverEvents();
 
   const openPairDialog = useOpenPairDialog();
@@ -67,6 +71,14 @@ function HomeScreen() {
     if (favorite) setTargetId(favorite.id);
   }, [targets, preferences.rememberLastTarget, preferences.lastTargetId, targetId]);
 
+  const onTargetChange = React.useCallback(
+    (next: string | null) => {
+      setTargetId(next);
+      if (preferences.rememberLastTarget) void savePreferences({ lastTargetId: next });
+    },
+    [preferences.rememberLastTarget, savePreferences],
+  );
+
   const fileInput = React.useRef<HTMLInputElement | null>(null);
   const photoInput = React.useRef<HTMLInputElement | null>(null);
   const cameraInput = React.useRef<HTMLInputElement | null>(null);
@@ -81,6 +93,18 @@ function HomeScreen() {
       }
     },
     [queue, preferences.rememberLastTarget, savePreferences],
+  );
+
+  /** Dosya tutamaci kaybolmussa kullanicidan ayni dosyayi tekrar secmesi istenir. */
+  const onRetryItem = React.useCallback(
+    (id: string) => {
+      if (!queue.retry(id)) {
+        setReattachError(null);
+        setReattachId(id);
+        fileInput.current?.click();
+      }
+    },
+    [queue],
   );
 
   const onFilesPicked = React.useCallback(
@@ -116,6 +140,26 @@ function HomeScreen() {
     },
     [preferences.quickSend, targetId, isOnline, send, reattachId, queue],
   );
+
+  // PC'nin kendi paneli icin secilen masaustu stili; telefon icin mobil stil.
+  // Karar health'in gercek soket adresine dayanir, telefon tarafindan spoof edilemez.
+  const localPanel = isLocalPanel({ isTauriShell: isTauri(), isLocalClient: health.isLocalClient });
+  if (localPanel && preferences.desktopSkin !== "classic") {
+    return (
+      <DesktopSkinView
+        skin={preferences.desktopSkin}
+        deviceName={deviceName}
+        isOnline={isOnline}
+        version={health.version}
+        addresses={health.addresses}
+        devices={(devicesQuery.data ?? []).filter((device) => device.enabled)}
+        transfers={transfersQuery.data?.items ?? []}
+        onAddDevice={openPairDialog}
+        onSelectDevice={enterDesktopSession}
+        locale={locale}
+      />
+    );
+  }
 
   return (
     <>
@@ -192,32 +236,46 @@ function HomeScreen() {
           </div>
         ) : null}
 
-        <Card>
-          <TargetPicker
-            targets={targets}
-            value={targetId}
-            onChange={(next) => {
-              setTargetId(next);
-              if (preferences.rememberLastTarget) void savePreferences({ lastTargetId: next });
-            }}
-            label={t.target}
-          />
-        </Card>
+        {/* Ayarlardan secilen telefon gorunum stili. Klasik disindaki stiller
+            hedef secimi ve kuyrugu kendi duzeninde gosterir; mantik aynidir. */}
+        {preferences.mobileSkin === "classic" ? (
+          <>
+            <Card>
+              <TargetPicker
+                targets={targets}
+                value={targetId}
+                onChange={onTargetChange}
+                label={t.target}
+              />
+            </Card>
 
-        <QueuePanel
-          items={queue.items}
-          summary={queue.summary}
-          onCancel={queue.cancel}
-          onRetry={(id) => {
-            if (!queue.retry(id)) {
-              setReattachError(null);
-              setReattachId(id);
-              fileInput.current?.click();
-            }
-          }}
-          onClear={queue.clearFinished}
-          locale={locale}
-        />
+            <QueuePanel
+              items={queue.items}
+              summary={queue.summary}
+              onCancel={queue.cancel}
+              onRetry={onRetryItem}
+              onClear={queue.clearFinished}
+              locale={locale}
+            />
+          </>
+        ) : (
+          <MobileSkin
+            skin={preferences.mobileSkin}
+            isOnline={isOnline}
+            deviceName={deviceName}
+            targets={targets}
+            targetId={targetId}
+            onTargetChange={onTargetChange}
+            items={queue.items}
+            summary={queue.summary}
+            onPickFiles={() => fileInput.current?.click()}
+            onPickPhotos={() => photoInput.current?.click()}
+            onCancel={queue.cancel}
+            onRetry={onRetryItem}
+            onClear={queue.clearFinished}
+            locale={locale}
+          />
+        )}
         {reattachError ? <p role="alert" className="text-sm text-danger">{reattachError}</p> : null}
 
         <Card>
