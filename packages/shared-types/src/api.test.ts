@@ -312,5 +312,7 @@ describe("rotalar (PRD §57)", () => {
     expect(API_ROUTES.rules).toBe("/api/rules");
     expect(API_ROUTES.rule("r1")).toBe("/api/rules/r1");
     expect(API_ROUTES.ws).toBe("/api/ws");
+    expect(API_ROUTES.localSession).toBe("/api/local-session");
+    expect(API_ROUTES.wsTicket).toBe("/api/ws-ticket");
   });
 });

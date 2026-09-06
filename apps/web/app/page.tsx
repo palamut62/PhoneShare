@@ -40,7 +40,8 @@ function HomeScreen() {
 
   const openPairDialog = useOpenPairDialog();
   const devicesQuery = useDevices();
-  const deviceCount = devicesQuery.data?.length ?? 0;
+  // Erisimi iptal edilen cihazlar sayilmaz: panel yanlislikla "telefon bagli" gorunumune dusmemeli.
+  const deviceCount = (devicesQuery.data ?? []).filter((device) => device.enabled).length;
 
   const targetsQuery = useTargets();
   const settingsQuery = useReceiverSettings();
@@ -52,6 +53,8 @@ function HomeScreen() {
   const [targetId, setTargetId] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState<File[]>([]);
   const [sendMenuOpen, setSendMenuOpen] = React.useState(false);
+  const [reattachId, setReattachId] = React.useState<string | null>(null);
+  const [reattachError, setReattachError] = React.useState<string | null>(null);
 
   // PRD §22/§73 — son kullanilan hedefi hatirla.
   React.useEffect(() => {
@@ -85,6 +88,25 @@ function HomeScreen() {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
       if (files.length === 0) return;
+      if (reattachId) {
+        const selectedFile = files[0];
+        if (!selectedFile) return;
+        void queue.reattach(reattachId, selectedFile).then((result) => {
+          setReattachId(null);
+          if (result === "attached") {
+            setReattachError(null);
+            return;
+          }
+          const messages = {
+            name_mismatch: "Choose the original file name for this transfer.",
+            size_mismatch: "Choose the original file with the same size for this transfer.",
+            digest_mismatch: "This file does not match the original transfer.",
+            unavailable: "This transfer can no longer be resumed.",
+          } as const;
+          setReattachError(messages[result]);
+        });
+        return;
+      }
       // PRD §23 — Hizli Gonder: onay ekrani atlanir.
       if (preferences.quickSend && targetId && isOnline) {
         send(files, targetId);
@@ -92,7 +114,7 @@ function HomeScreen() {
       }
       setPending(files);
     },
-    [preferences.quickSend, targetId, isOnline, send],
+    [preferences.quickSend, targetId, isOnline, send, reattachId, queue],
   );
 
   return (
@@ -187,11 +209,16 @@ function HomeScreen() {
           summary={queue.summary}
           onCancel={queue.cancel}
           onRetry={(id) => {
-            if (!queue.retry(id)) fileInput.current?.click();
+            if (!queue.retry(id)) {
+              setReattachError(null);
+              setReattachId(id);
+              fileInput.current?.click();
+            }
           }}
           onClear={queue.clearFinished}
           locale={locale}
         />
+        {reattachError ? <p role="alert" className="text-sm text-danger">{reattachError}</p> : null}
 
         <Card>
           <CardTitle>{t.recentTransfers}</CardTitle>

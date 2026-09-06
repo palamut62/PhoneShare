@@ -10,6 +10,8 @@ Akis:
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import math
 import secrets
 from dataclasses import dataclass
@@ -39,6 +41,21 @@ from .naming import apply_naming_template
 log = get_logger("transfer")
 
 ACTIVE_STATUSES = ("PREPARING", "UPLOADING")
+
+#: Disk/hash isleri olay dongusunu bloklamamalidir: saglik ucu ve diger
+#: yuklemeler buyuk bir dosya birlestirilirken de yanit vermeye devam eder.
+#: Es zamanli is parcacigi sayisi sinirli tutulur (PRD §53).
+_IO_SLOTS = asyncio.Semaphore(4)
+
+
+async def _offload(func, /, *args):
+    """Bloklayan dosya islemini sinirli bir is parcacigi havuzunda calistirir.
+
+    AsyncSession asla is parcacigina gecirilmez; yalnizca saf dosya sistemi
+    ve hash islemleri buraya tasinir.
+    """
+    async with _IO_SLOTS:
+        return await asyncio.to_thread(func, *args)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +105,9 @@ async def init_upload(
 
     # --- hedefi belirle (acikca verilmediyse kural motoru karar verir) ---
     resolved_target_id = target_id
+    resolved_name = safe_name
+    effective_policy = config.conflict_policy
+    matched_rule_id: str | None = None
     if resolved_target_id is None:
         resolved = await rule_engine.resolve_for_file(
             session,
@@ -98,6 +118,13 @@ async def init_upload(
             default_conflict_policy=config.conflict_policy,
         )
         resolved_target_id = resolved.folder_id
+        resolved_name = sanitize_file_name(resolved.file_name)
+        effective_policy = resolved.conflict_policy
+        matched_rule_id = resolved.matched_rule_id
+
+    decision_fingerprint = hashlib.sha256(
+        f"{target_id or 'auto'}|{resolved_target_id or ''}|{resolved_name}|{effective_policy}|{matched_rule_id or ''}|{config.naming_template}".encode()
+    ).hexdigest()
 
     target_row, target_dir = await targets.resolve_target_dir(session, config, resolved_target_id)
 
@@ -110,6 +137,7 @@ async def init_upload(
                 Upload.filename == safe_name,
                 Upload.size == size,
                 Upload.sha256.is_(sha256) if sha256 is None else Upload.sha256 == sha256,
+                Upload.decision_fingerprint == decision_fingerprint,
                 Upload.status.in_(ACTIVE_STATUSES),
             )
             .order_by(Upload.created_at.desc())
@@ -142,7 +170,7 @@ async def init_upload(
 
     # --- PRD §53: disk alani kontrolu (teknik detay kullaniciya SIZMAZ, PRD §71) ---
     try:
-        ensure_capacity(target_dir, size, config.disk_quota_bytes)
+        await _offload(ensure_capacity, target_dir, size, config.disk_quota_bytes)
     except DiskQuotaError as exc:
         raise InsufficientStorageError(detail=str(exc)) from exc
 
@@ -174,6 +202,10 @@ async def init_upload(
         sha256=sha256,
         chunk_size=chunk_size,
         total_chunks=total_chunks,
+        requested_target_id=target_id,
+        resolved_filename=resolved_name,
+        conflict_policy=effective_policy,
+        decision_fingerprint=decision_fingerprint,
         status="PREPARING",
     )
     session.add(transfer)
@@ -229,10 +261,10 @@ async def save_chunk(
         normalized = chunk_hash.strip().lower()
         if len(normalized) != 64 or any(c not in "0123456789abcdef" for c in normalized):
             raise ValidationError("Parca dogrulama degeri gecersiz.")
-        if sha256_of(data) != normalized:
+        if await _offload(sha256_of, data) != normalized:
             raise ChecksumError("Parca dogrulanamadi, lutfen tekrar gonderin.")
 
-    temp_store.write_chunk(upload_id, chunk_index, data)
+    await _offload(temp_store.write_chunk, upload_id, chunk_index, data)
 
     row = await session.get(UploadChunk, {"upload_id": upload_id, "chunk_index": chunk_index})
     if row is None:
@@ -291,7 +323,9 @@ async def complete_upload(
     await session.flush()
 
     try:
-        assembled, digest, size = temp_store.assemble(upload_id, upload.total_chunks)
+        assembled, digest, size = await _offload(
+            temp_store.assemble, upload_id, upload.total_chunks
+        )
     except (OSError, FileNotFoundError) as exc:
         return await _fail(
             session, temp_store, upload, transfer, "Aktarim tamamlanamadi.", detail=str(exc)
@@ -313,18 +347,23 @@ async def complete_upload(
     # Every completed transfer is grouped under the computer's local calendar date.
     # Reuse the same directory for all files received on the same day.
     target_dir = target_dir / datetime.now().date().isoformat()
-    target_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        await _offload(lambda: target_dir.mkdir(parents=True, exist_ok=True))
+    except OSError as exc:
+        await _fail(
+            session, temp_store, upload, transfer, "Hedef klasor olusturulamadi.", detail=str(exc)
+        )
+        raise ConflictError("Hedef klasor olusturulamadi.") from exc
 
-    final_name = apply_naming_template(
-        config.naming_template,
-        upload.filename,
-        device_name=device.name,
-        folder_name=target_row.name if target_row else "",
+    final_name = upload.resolved_filename or apply_naming_template(
+        config.naming_template, upload.filename, device_name=device.name, folder_name=target_row.name if target_row else ""
     )
 
-    placement = plan_placement(target_dir, final_name, config.conflict_policy)
+    placement = await _offload(
+        plan_placement, target_dir, final_name, upload.conflict_policy or config.conflict_policy
+    )
     if placement.skipped or placement.path is None:
-        temp_store.cleanup(upload_id)
+        await _offload(temp_store.cleanup, upload_id)
         upload.status = "CANCELLED"
         if transfer is not None:
             transfer.status = "CANCELLED"
@@ -335,14 +374,14 @@ async def complete_upload(
 
     roots = targets.effective_roots(config)
     try:
-        stored = atomic_move(assembled, placement.path, roots)
+        stored = await _offload(atomic_move, assembled, placement.path, roots)
     except (OSError, PermissionError, UnsafePathError) as exc:
         await _fail(
             session, temp_store, upload, transfer, "Dosya kaydedilemedi.", detail=str(exc)
         )
         raise ConflictError("Dosya kaydedilemedi.") from exc
 
-    temp_store.cleanup(upload_id)
+    await _offload(temp_store.cleanup, upload_id)
 
     upload.status = "COMPLETED"
     upload.stored_path = str(stored)
@@ -351,7 +390,7 @@ async def complete_upload(
         started = _aware(transfer.started_at)
         duration = max(0.0, (_now() - started).total_seconds())
         transfer.status = "COMPLETED"
-        transfer.verified = True
+        transfer.verified = bool(upload.sha256 and digest == upload.sha256)
         transfer.stored_filename = placement.file_name
         transfer.stored_path = str(stored)
         transfer.sha256 = digest
@@ -379,7 +418,11 @@ async def cancel_upload(
     upload_id: str,
 ) -> Upload:
     upload = await get_upload(session, upload_id, device)
-    temp_store.cleanup(upload_id)
+    if upload.status == "COMPLETED":
+        # Tamamlanmis aktarim terminaldir: teslim edilen dosya silinmez ve
+        # basarili durumu iptale donusturulmez (idempotent davranis).
+        return upload
+    await _offload(temp_store.cleanup, upload_id)
     upload.status = "CANCELLED"
     transfer = await session.get(Transfer, upload.transfer_id) if upload.transfer_id else None
     if transfer is not None and transfer.status not in ("COMPLETED",):
@@ -442,7 +485,7 @@ async def _fail(
     detail: str | None = None,
 ) -> tuple[Upload, Transfer | None]:
     """Upload'i FAILED yapar ve gecici dosyalari temizler. Teknik detay yalnizca loga gider."""
-    temp_store.cleanup(upload.id)
+    await _offload(temp_store.cleanup, upload.id)
     upload.status = "FAILED"
     upload.error_message = message
     if transfer is not None:

@@ -20,6 +20,10 @@ fn default_port() -> u16 {
     8765
 }
 
+fn default_management_port() -> u16 {
+    8766
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DesktopConfig {
@@ -38,6 +42,9 @@ pub struct DesktopConfig {
     pub receiver_host: String,
     #[serde(default = "default_port")]
     pub receiver_port: u16,
+    /// Native panel's loopback-only management listener. It is never published to phones.
+    #[serde(default = "default_management_port")]
+    pub management_port: u16,
     /// `https://` uzerinden mi konusulacak (self-signed veya Tailscale sertifikasi).
     pub receiver_tls: bool,
     /// Tailscale (veya self-signed) sertifika dosyalari; uzaktan erisim acilirken
@@ -64,6 +71,7 @@ impl Default for DesktopConfig {
             device_id: None,
             receiver_host: default_host(),
             receiver_port: default_port(),
+            management_port: default_management_port(),
             receiver_tls: false,
             tls_certfile: None,
             tls_keyfile: None,
@@ -194,6 +202,7 @@ mod tests {
     fn config_deserializes_with_missing_fields() {
         let config: DesktopConfig = serde_json::from_str("{}").unwrap();
         assert_eq!(config.receiver_port, 8765);
+        assert_eq!(config.management_port, 8766);
         assert!(!config.setup_completed);
         assert!(config.minimize_to_tray);
         assert!(config.autostart);

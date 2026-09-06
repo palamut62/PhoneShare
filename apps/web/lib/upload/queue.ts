@@ -8,6 +8,7 @@
 
 import { uploadFile, cancelUpload, type UploadFileOptions } from "./client";
 import { toUserFacingError, UploadError } from "./errors";
+import { hashFile } from "./sha256";
 import type {
   FetchLike,
   FileLike,
@@ -199,6 +200,19 @@ export class UploadQueue {
     });
     this.start();
     return true;
+  }
+
+  /** Reattach exactly the file belonging to a restored queue row. */
+  async reattach(
+    id: string,
+    file: FileLike,
+  ): Promise<"attached" | "name_mismatch" | "size_mismatch" | "digest_mismatch" | "unavailable"> {
+    const item = this.get(id);
+    if (!item || !isTerminal(item.status) || item.status === "COMPLETED") return "unavailable";
+    if (file.name !== item.filename) return "name_mismatch";
+    if (file.size !== item.size) return "size_mismatch";
+    if (item.sha256 && (await hashFile(file)) !== item.sha256) return "digest_mismatch";
+    return this.retry(id, file) ? "attached" : "unavailable";
   }
 
   remove(id: string): void {

@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import os
 import sys
 
 from . import __version__
@@ -78,6 +80,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         cfg.tls_certfile = args.tls_certfile
     if args.tls_keyfile:
         cfg.tls_keyfile = args.tls_keyfile
+    if args.published_host:
+        cfg.published_host = args.published_host
     cfg = sanitize_config(cfg)
 
     setup_logging(cfg.log_level)
@@ -87,8 +91,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
         extra={"category": "system", "host": cfg.host, "port": cfg.port},
     )
 
+    if args.management_port and args.management_port == cfg.port:
+        print("Yonetim portu yayin portundan farkli olmali.", file=sys.stderr)
+        return 2
     state = ReceiverState(cfg)
+    state.management_port = args.management_port
+    state.local_capability = os.environ.get("PHONESHARE_LOCAL_TOKEN") or os.environ.get("PHONESHARE_LOCAL_CAPABILITY")
     app = create_app(state, configure_logging=False, web_dist=args.web_dist)
+    if args.management_port:
+        return asyncio.run(_run_dual(app, state, cfg, args.management_port))
     uvicorn.run(
         app,
         host=cfg.host,
@@ -98,6 +109,40 @@ def _cmd_run(args: argparse.Namespace) -> int:
         log_config=None,
     )
     return 0
+
+
+async def _run_dual(app, state, cfg: ReceiverConfig, management_port: int) -> int:
+    """Run public and loopback management listeners against one initialized state."""
+    import uvicorn
+
+    log = get_logger("system")
+    await state.startup()
+    public = uvicorn.Server(uvicorn.Config(app, host=cfg.host, port=cfg.port, ssl_certfile=cfg.tls_certfile, ssl_keyfile=cfg.tls_keyfile, lifespan="off", log_config=None, proxy_headers=False))
+    management = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=management_port, lifespan="off", log_config=None, proxy_headers=False))
+    tasks = [asyncio.create_task(public.serve()), asyncio.create_task(management.serve())]
+    exit_code = 0
+    try:
+        # Bir dinleyici baslayamazsa (port dolu, TLS hatasi) yarim calisan bir
+        # receiver birakilmaz: her iki dinleyici de durdurulur ve hata dondurulur.
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        if pending:
+            exit_code = 1
+            public.should_exit = True
+            management.should_exit = True
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+        for task in done:
+            error = task.exception() if not task.cancelled() else None
+            if error is not None:
+                exit_code = 1
+                log.error(
+                    "Dinleyici baslatilamadi.",
+                    extra={"category": "system", "error": str(error)},
+                )
+    finally:
+        await state.shutdown()
+    return exit_code
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -112,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--web-dist", help="PWA static export dizini")
     run.add_argument("--tls-certfile", help="TLS sertifika dosyasi (uvicorn ssl_certfile)")
     run.add_argument("--tls-keyfile", help="TLS ozel anahtar dosyasi (uvicorn ssl_keyfile)")
+    run.add_argument("--management-port", type=int, help="Loopback HTTP yonetim portu")
+    run.add_argument("--published-host", help="Telefonlara yayinlanan DNS/IP adresi")
     run.set_defaults(func=_cmd_run)
 
     conf = sub.add_parser("config", help="Ayarlari goster/degistir")
@@ -126,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     if not getattr(args, "func", None):
         # Alt komut verilmediyse varsayilan davranis: receiver'i baslat.
         return _cmd_run(
-            argparse.Namespace(host=None, port=None, web_dist=None, tls_certfile=None, tls_keyfile=None)
+            argparse.Namespace(host=None, port=None, web_dist=None, tls_certfile=None, tls_keyfile=None, management_port=None, published_host=None)
         )
     return int(args.func(args))
 

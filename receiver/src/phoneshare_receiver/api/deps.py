@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from ipaddress import ip_address
@@ -10,6 +11,7 @@ from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.errors import ReceiverError
 from ..core.ratelimit import RateLimitError
 from ..core.state import ReceiverState
 from ..models import Device
@@ -17,6 +19,8 @@ from ..security import audit
 from ..security.tokens import AuthError, extract_bearer, hash_token
 
 SESSION_COOKIE = "phoneshare_session"
+LOCAL_ADMIN_COOKIE = "phoneshare_local_admin"
+LOCAL_TOKEN_HEADER = "X-PhoneShare-Local-Token"
 
 
 def get_state(request: Request) -> ReceiverState:
@@ -30,12 +34,16 @@ async def get_session(
     async with state.db.session() as session:
         try:
             yield session
-        finally:
-            # Hata yollarinda da denetim kaydi ve FAILED durumlari kalici olmalidir.
-            try:
-                await session.commit()
-            except Exception:  # pragma: no cover - bozuk oturum
-                await session.rollback()
+        except (HTTPException, ReceiverError):
+            # Authentication/audit failures are intentional response paths and
+            # their audit rows must survive the 4xx response.
+            await session.commit()
+            raise
+        except Exception:
+            await session.rollback()
+            raise
+        else:
+            await session.commit()
 
 
 def client_key(request: Request) -> str:
@@ -70,6 +78,38 @@ def require_loopback_client(request: Request) -> None:
             status_code=403,
             detail="Eslestirme kodu yalnizca bilgisayarin kendi PhoneShare penceresinden olusturulabilir.",
         )
+
+
+def _host_is_loopback(request: Request, state: ReceiverState) -> bool:
+    host = request.headers.get("host", "")
+    expected_port = state.management_port or state.config.port
+    return host in {f"127.0.0.1:{expected_port}", f"localhost:{expected_port}", f"[::1]:{expected_port}"}
+
+
+def local_capability_valid(request: Request, state: ReceiverState) -> bool:
+    supplied = request.headers.get(LOCAL_TOKEN_HEADER)
+    return bool(supplied and state.local_capability and secrets.compare_digest(supplied, state.local_capability))
+
+
+def local_browser_request_valid(request: Request, state: ReceiverState) -> bool:
+    if not is_loopback_client(request) or not _host_is_loopback(request, state):
+        return False
+    origin = request.headers.get("origin")
+    expected = f"http://127.0.0.1:{state.management_port or state.config.port}"
+    if origin:
+        return origin == expected
+    return request.headers.get("sec-fetch-site", "").lower() == "same-origin"
+
+
+async def require_local_admin(
+    request: Request,
+    state: ReceiverState = Depends(get_state),
+) -> None:
+    if state.local_session_valid(request.cookies.get(LOCAL_ADMIN_COOKIE)) and local_browser_request_valid(request, state):
+        return
+    if local_capability_valid(request, state) and is_loopback_client(request):
+        return
+    raise HTTPException(status_code=401, detail="Yerel yonetim yetkisi gerekli.")
 
 
 async def current_device(
@@ -124,7 +164,9 @@ async def current_device_or_loopback(
     session: AsyncSession = Depends(get_session),
 ) -> Device | None:
     """Telefon token'i veya gercek loopback masaustu paneli erisimi."""
-    if is_loopback_client(request) and not authorization and not request.cookies.get(SESSION_COOKIE):
+    if state.local_session_valid(request.cookies.get(LOCAL_ADMIN_COOKIE)) and local_browser_request_valid(request, state):
+        return None
+    if local_capability_valid(request, state) and is_loopback_client(request):
         return None
     return await current_device(request, authorization, state, session)
 

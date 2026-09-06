@@ -59,6 +59,7 @@ class ReceiverConfig:
 
     host: str = "0.0.0.0"
     port: int = 8765
+    published_host: str | None = None
     device_name: str = "Windows PC"
 
     # Ana klasor (PRD §10) — varsayilan hedeflerin ve `.temp` dizininin koku.

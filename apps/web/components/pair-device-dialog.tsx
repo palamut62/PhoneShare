@@ -58,10 +58,14 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
   const [tailscale, setTailscale] = React.useState<{ dnsName: string | null } | null>(null);
   const [copied, setCopied] = React.useState<"code" | "address" | null>(null);
   const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = React.useRef<HTMLElement | null>(null);
+  const [expired, setExpired] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setStatus("loading");
     setCopied(null);
+    setExpired(false);
     try {
       const [freshTicket, address] = await Promise.all([startPairing(), getPairAddress()]);
       const parsed = qrPayloadSchema.safeParse(JSON.parse(freshTicket.qr_payload));
@@ -80,6 +84,52 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
   React.useEffect(() => {
     if (open) void load();
   }, [open, load]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const timer = setTimeout(() => dialogRef.current?.focus(), 0);
+    return () => {
+      clearTimeout(timer);
+      previousFocusRef.current?.focus();
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!ticket) return;
+    const delay = new Date(ticket.expires_at).getTime() - Date.now();
+    if (delay <= 0) {
+      setExpired(true);
+      return;
+    }
+    const timer = setTimeout(() => setExpired(true), delay);
+    return () => clearTimeout(timer);
+  }, [ticket]);
+
+  const onKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    },
+    [onClose],
+  );
 
   React.useEffect(() => {
     return () => {
@@ -127,9 +177,15 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
       aria-label={t.addDevice}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
+      onKeyDown={onKeyDown}
     >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="w-full max-w-md"
+      >
       <Card
-        className="max-h-[92dvh] w-full max-w-md overflow-y-auto"
+        className="max-h-[92dvh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
@@ -155,6 +211,11 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
             <Button variant="secondary" onClick={() => void load()}>
               {t.retry}
             </Button>
+          </div>
+        ) : expired ? (
+          <div className="flex min-h-64 flex-col items-center justify-center gap-3">
+            <p role="status" className="text-sm text-danger">This pairing code has expired.</p>
+            <Button variant="secondary" onClick={() => void load()}>{t.refreshCode}</Button>
           </div>
         ) : ticket && payload ? (
           <div className="mt-3 flex flex-col gap-4">
@@ -286,6 +347,7 @@ export function PairDeviceDialog({ open, onClose }: PairDeviceDialogProps) {
           </div>
         ) : null}
       </Card>
+      </div>
     </div>
   );
 }

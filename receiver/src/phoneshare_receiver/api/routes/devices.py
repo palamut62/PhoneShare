@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.errors import NotFoundError
+from ...core.state import ReceiverState
 from ...models import Device
 from ...schemas import DeviceResponse
 from ...security import audit
-from ..deps import current_device_or_loopback, get_session
+from ..deps import current_device_or_loopback, get_session, get_state
 
 router = APIRouter(tags=["devices"])
 
@@ -29,13 +30,15 @@ async def list_devices(
 async def remove_device(
     device_id: str,
     _device: Device | None = Depends(current_device_or_loopback),
+    state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Cihaz kaydini siler; token aninda gecersizlesir."""
     target = await session.get(Device, device_id)
     if target is None:
         raise NotFoundError("Cihaz bulunamadi.")
-    await session.delete(target)
+    target.enabled = False
     await session.flush()
     await audit.record_audit(session, audit.DEVICE_REMOVED, device_id=device_id)
+    await state.revoke_principal(f"device:{device_id}")
     return Response(status_code=204)

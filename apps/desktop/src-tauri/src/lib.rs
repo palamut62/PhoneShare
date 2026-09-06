@@ -53,6 +53,7 @@ pub fn run() {
             commands::start_receiver,
             commands::stop_receiver,
             commands::receiver_status,
+            commands::get_receiver_connection,
             commands::receiver_logs,
             commands::clear_receiver_logs,
             commands::report_status,
@@ -143,7 +144,7 @@ pub fn run() {
             {
                 let state = app.state::<AppState>();
                 let web_dist = state.web_dist();
-                let port = {
+                let receiver = {
                     let mut config = state.config.lock().expect("config kilidi");
                     // Edge case (PRD §48): uzaktan erisim acik ama cert dosyalari
                     // kayip (silinmis/tasinmis). Tailscale calisiyorsa sessizce
@@ -167,10 +168,24 @@ pub fn run() {
                             }
                         }
                     }
-                    (config.receiver_port, config.tls_files())
+                    (
+                        config.receiver_port,
+                        config.management_port,
+                        config.receiver_host.contains(".ts.net").then(|| config.receiver_host.clone()),
+                        config.tls_files(),
+                    )
                 };
-                let (port, tls) = port;
-                if let Err(err) = state.sidecar.start(handle, "0.0.0.0", port, web_dist, tls) {
+                let (port, management_port, published_host, tls) = receiver;
+                if let Err(err) = state.sidecar.start(
+                    handle,
+                    "0.0.0.0",
+                    port,
+                    management_port,
+                    published_host.as_deref(),
+                    state.local_token(),
+                    web_dist,
+                    tls,
+                ) {
                     eprintln!("[setup] receiver baslatilamadi: {err}");
                 }
             }

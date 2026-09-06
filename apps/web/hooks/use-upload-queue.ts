@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
+import { receiverFetch } from "@/lib/api/client";
 import { loadQueueMeta, saveQueueMeta } from "@/lib/storage/session";
 import { UploadQueue } from "@/lib/upload/queue";
 import type { QueueItem } from "@/lib/upload/types";
@@ -14,6 +15,7 @@ export interface UseUploadQueue {
   start: () => void;
   cancel: (id: string) => void;
   retry: (id: string, file?: File) => boolean;
+  reattach: (id: string, file: File) => Promise<"attached" | "name_mismatch" | "size_mismatch" | "digest_mismatch" | "unavailable">;
   remove: (id: string) => void;
   clearFinished: () => void;
   summary: ReturnType<UploadQueue["summary"]>;
@@ -28,7 +30,7 @@ export function useUploadQueue(deviceName: string | null, maxFileBytes?: number)
   const queueRef = React.useRef<UploadQueue | null>(null);
   if (!queueRef.current) {
     queueRef.current = new UploadQueue({
-      fetch: (url, init) => fetch(url, init as RequestInit),
+      fetch: (url, init) => receiverFetch(url, init as RequestInit),
       fileConcurrency: 1,
       chunkConcurrency: 3,
       // PRD §54 — yalnizca meta veri saklanir, dosya icerigi degil.
@@ -59,10 +61,13 @@ export function useUploadQueue(deviceName: string | null, maxFileBytes?: number)
     for (const item of items) {
       if (previousStatuses.current.get(item.id) !== item.status) {
         previousStatuses.current.set(item.id, item.status);
-        if (item.status === "COMPLETED") changed = true;
+        if (["COMPLETED", "FAILED", "CANCELLED"].includes(item.status)) changed = true;
       }
     }
-    if (changed) void queryClient.invalidateQueries({ queryKey: ["transfers"] });
+    if (changed) {
+      void queryClient.invalidateQueries({ queryKey: ["transfers"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats"] });
+    }
   }, [items, queryClient]);
 
   return {
@@ -76,6 +81,7 @@ export function useUploadQueue(deviceName: string | null, maxFileBytes?: number)
     start: React.useCallback(() => queue.start(), [queue]),
     cancel: React.useCallback((id: string) => queue.cancel(id), [queue]),
     retry: React.useCallback((id: string, file?: File) => queue.retry(id, file), [queue]),
+    reattach: React.useCallback((id: string, file: File) => queue.reattach(id, file), [queue]),
     remove: React.useCallback((id: string) => queue.remove(id), [queue]),
     clearFinished: React.useCallback(() => queue.clearFinished(), [queue]),
     summary: queue.summary(),

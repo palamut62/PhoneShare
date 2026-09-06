@@ -37,22 +37,48 @@ export interface PairAddress {
   port?: number | null;
 }
 
-interface ReceiverConfig {
-  receiver_port: number;
-  receiver_tls: boolean;
+export interface ReceiverConnection {
+  /** Always the sidecar's loopback HTTP management listener. */
+  origin: string;
+  /** Shell-lifetime capability. It is kept in memory and never added to URLs. */
+  local_token: string;
 }
 
-let receiverOriginPromise: Promise<string | null> | null = null;
+let receiverConnectionPromise: Promise<ReceiverConnection | null> | null = null;
 
-/** Tauri panelinin ayni makinedeki receiver'a baglanacagi origin. */
-export function getReceiverOrigin(): Promise<string | null> {
+/**
+ * Gets the management connection from native code. Do not derive this from the
+ * public/TLS configuration: remote transitions must not change local authority.
+ * A failed invoke is deliberately not cached, so restart recovery can retry.
+ */
+export function getReceiverConnection(): Promise<ReceiverConnection | null> {
   if (!isTauri()) return Promise.resolve(null);
-  receiverOriginPromise ??= invokeTauri<ReceiverConfig>("get_config").then((config) => {
-    if (!config) return null;
-    const scheme = config.receiver_tls ? "https" : "http";
-    return `${scheme}://127.0.0.1:${config.receiver_port}`;
-  });
-  return receiverOriginPromise;
+  if (!receiverConnectionPromise) {
+    receiverConnectionPromise = invokeTauri<ReceiverConnection>("get_receiver_connection").then(
+      (connection) => {
+        if (!connection?.origin || !connection.local_token) {
+          receiverConnectionPromise = null;
+          return null;
+        }
+        return connection;
+      },
+      () => {
+        receiverConnectionPromise = null;
+        return null;
+      },
+    );
+  }
+  return receiverConnectionPromise;
+}
+
+/** Compatibility helper for code that only needs the local management origin. */
+export async function getReceiverOrigin(): Promise<string | null> {
+  return (await getReceiverConnection())?.origin ?? null;
+}
+
+/** Call after the sidecar restarts or remote listener settings change. */
+export function refreshReceiverConnection(): void {
+  receiverConnectionPromise = null;
 }
 
 /** Panel: receiver adresi uzak (Tailscale) moddaysa scheme + host doner. */

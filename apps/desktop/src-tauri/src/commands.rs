@@ -192,11 +192,24 @@ pub fn forget_target_path(state: State<'_, AppState>, target_id: String) -> Resu
 
 #[tauri::command]
 pub fn start_receiver(app: AppHandle, state: State<'_, AppState>) -> Result<SidecarStatus, String> {
-    let (host, port, tls) = with_config(&state, |config| {
-        // Sidecar daima 0.0.0.0 dinler; panel 127.0.0.1 uzerinden konusur.
-        ("0.0.0.0".to_string(), config.receiver_port, config.tls_files())
+    let (port, management_port, published_host, tls) = with_config(&state, |config| {
+        (
+            config.receiver_port,
+            config.management_port,
+            config.receiver_host.contains(".ts.net").then(|| config.receiver_host.clone()),
+            config.tls_files(),
+        )
     });
-    state.sidecar.start(&app, &host, port, state.web_dist(), tls)?;
+    state.sidecar.start(
+        &app,
+        "0.0.0.0",
+        port,
+        management_port,
+        published_host.as_deref(),
+        state.local_token(),
+        state.web_dist(),
+        tls,
+    )?;
     let status = with_config(&state, |config| {
         state.sidecar.status(&config.receiver_host, config.receiver_port)
     });
@@ -221,6 +234,22 @@ pub fn receiver_status(state: State<'_, AppState>) -> SidecarStatus {
     with_config(&state, |config| {
         state.sidecar.status(&config.receiver_host, config.receiver_port)
     })
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReceiverConnection {
+    pub origin: String,
+    pub local_token: String,
+}
+
+/// Only the bundled WebView receives this shell-lifetime management capability.
+#[tauri::command]
+pub fn get_receiver_connection(state: State<'_, AppState>) -> ReceiverConnection {
+    let management_port = with_config(&state, |config| config.management_port);
+    ReceiverConnection {
+        origin: format!("http://127.0.0.1:{management_port}"),
+        local_token: state.local_token().to_string(),
+    }
 }
 
 #[tauri::command]
@@ -454,16 +483,26 @@ pub struct TailscaleRemoteState {
 /// (host = config.receiver_host, TLS = config.tls_files()).
 fn restart_receiver(app: &AppHandle, state: &State<'_, AppState>) -> Result<(), String> {
     state.sidecar.stop()?;
-    let (host, port, tls) = with_config(state, |config| {
+    let (port, management_port, published_host, tls) = with_config(state, |config| {
         (
-            config.receiver_host.clone(),
             config.receiver_port,
+            config.management_port,
+            config.receiver_host.contains(".ts.net").then(|| config.receiver_host.clone()),
             config.tls_files(),
         )
     });
     let result = state
         .sidecar
-        .start(app, &host, port, state.web_dist(), tls);
+        .start(
+            app,
+            "0.0.0.0",
+            port,
+            management_port,
+            published_host.as_deref(),
+            state.local_token(),
+            state.web_dist(),
+            tls,
+        );
     tray::refresh(app);
     result
 }
@@ -500,6 +539,7 @@ fn enable_remote_access(
         .clone()
         .ok_or_else(|| "Tailscale DNS adi alinamadi.".to_string())?;
 
+    let previous = with_config(state, |config| config.clone());
     // HTTPS sertifikasi dene; olmazsa HTTP moduna duser, is yine tamamlanir.
     let (https, message) = match tailscale::fetch_cert(&dns) {
         Ok(()) => {
@@ -530,7 +570,12 @@ fn enable_remote_access(
     };
 
     persist(state)?;
-    restart_receiver(app, state)?;
+    if let Err(error) = restart_receiver(app, state) {
+        with_config(state, |config| *config = previous);
+        let _ = persist(state);
+        let _ = restart_receiver(app, state);
+        return Err(error);
+    }
 
     Ok(TailscaleRemoteState {
         enabled: true,
@@ -545,6 +590,7 @@ fn disable_remote_access(
     app: &AppHandle,
     state: &State<'_, AppState>,
 ) -> Result<TailscaleRemoteState, String> {
+    let previous = with_config(state, |config| config.clone());
     with_config(state, |config| {
         config.receiver_host = "127.0.0.1".to_string();
         config.receiver_tls = false;
@@ -552,7 +598,12 @@ fn disable_remote_access(
         config.tls_keyfile = None;
     });
     persist(state)?;
-    restart_receiver(app, state)?;
+    if let Err(error) = restart_receiver(app, state) {
+        with_config(state, |config| *config = previous);
+        let _ = persist(state);
+        let _ = restart_receiver(app, state);
+        return Err(error);
+    }
 
     Ok(TailscaleRemoteState {
         enabled: false,

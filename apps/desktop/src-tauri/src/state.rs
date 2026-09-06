@@ -28,10 +28,15 @@ pub struct AppState {
     connected_devices: AtomicU32,
     /// Panelin acilista gostermesi gereken eslestirme dialogu (PRD §10 adim 6).
     pair_prompt: AtomicBool,
+    /// Per-shell capability forwarded only through the sidecar environment.
+    local_token: String,
 }
 
 impl AppState {
     pub fn new() -> Self {
+        let mut token = [0_u8; 32];
+        getrandom::getrandom(&mut token).expect("OS random source unavailable");
+        let local_token = token.iter().map(|byte| format!("{byte:02x}")).collect();
         Self {
             config: Mutex::new(config::load()),
             sidecar: Sidecar::default(),
@@ -39,6 +44,7 @@ impl AppState {
             online: AtomicBool::new(false),
             connected_devices: AtomicU32::new(0),
             pair_prompt: AtomicBool::new(false),
+            local_token,
         }
     }
 
@@ -78,5 +84,9 @@ impl AppState {
     /// Bayragi okur ve sifirlar; ayni istek iki kez tuketilmez.
     pub fn take_pair_prompt(&self) -> bool {
         self.pair_prompt.swap(false, Ordering::Relaxed)
+    }
+
+    pub fn local_token(&self) -> &str {
+        &self.local_token
     }
 }

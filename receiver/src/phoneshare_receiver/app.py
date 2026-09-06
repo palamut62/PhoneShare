@@ -54,9 +54,12 @@ def create_app(
     # zaten receiver ile ayni origin'den servis edilir.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://tauri.localhost", "https://tauri.localhost", "tauri://localhost", "null"],
+        # CORS is never an authorization boundary.  The local capability is
+        # checked by deps.py, and browsers only get a same-origin cookie.
+        allow_origins=["http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"],
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-PhoneShare-Local-Token"],
+        allow_credentials=True,
     )
 
     # --- hata donusturucular (PRD §71: teknik detay sizmaz) ---

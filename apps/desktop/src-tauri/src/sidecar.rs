@@ -8,9 +8,12 @@
 
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -160,6 +163,9 @@ impl Sidecar {
         app: &AppHandle,
         host: &str,
         port: u16,
+        management_port: u16,
+        published_host: Option<&str>,
+        local_token: &str,
         web_dist: Option<PathBuf>,
         tls: Option<(PathBuf, PathBuf)>,
     ) -> Result<(), String> {
@@ -197,6 +203,8 @@ impl Sidecar {
         command
             .args(["--host", host])
             .args(["--port", &port.to_string()])
+            .args(["--management-port", &management_port.to_string()])
+            .env("PHONESHARE_LOCAL_TOKEN", local_token)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
@@ -210,6 +218,10 @@ impl Sidecar {
             .or_else(dev_web_dist);
         if let Some(dist) = web_dist {
             command.arg("--web-dist").arg(dist);
+        }
+
+        if let Some(host) = published_host.filter(|host| !host.trim().is_empty()) {
+            command.args(["--published-host", host]);
         }
 
         // TLS (cert, key) verildiyse HTTPS'te dinle (PRD §48). Dev modunda da
@@ -238,6 +250,10 @@ impl Sidecar {
         if let Ok(mut slot) = self.child.lock() {
             *slot = Some(child);
         }
+        if !self.wait_for_management_health(management_port) {
+            let _ = self.stop();
+            return Err("Receiver management listener did not become healthy.".to_string());
+        }
         push_log(
             &self.logs,
             app,
@@ -245,6 +261,28 @@ impl Sidecar {
             format!("Receiver baslatildi ({host}:{port})."),
         );
         Ok(())
+    }
+
+    fn wait_for_management_health(&self, port: u16) -> bool {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let address = SocketAddr::from(([127, 0, 0, 1], port));
+        while Instant::now() < deadline {
+            if let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_millis(250)) {
+                let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
+                let request = format!(
+                    "GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
+                );
+                let _ = stream.write_all(request.as_bytes());
+                let mut response = [0_u8; 64];
+                if let Ok(size) = stream.read(&mut response) {
+                    if response[..size].starts_with(b"HTTP/1.1 200") {
+                        return true;
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        false
     }
 
     fn spawn_reader<R: std::io::Read + Send + 'static>(

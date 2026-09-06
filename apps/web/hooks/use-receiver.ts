@@ -62,10 +62,10 @@ export function useDevices() {
   });
 }
 
-export function useTransfers(params: { q?: string; limit?: number } = {}) {
+export function useTransfers(params: { q?: string; limit?: number; offset?: number } = {}) {
   const { session } = useApp();
   return useQuery({
-    queryKey: ["transfers", params.q ?? "", params.limit ?? 50],
+    queryKey: ["transfers", params.q ?? "", params.limit ?? 50, params.offset ?? 0],
     queryFn: () => getTransfers(session?.token ?? "", params),
     enabled: Boolean(session?.token),
   });
@@ -115,14 +115,25 @@ export function useReceiverEvents(onEvent?: (event: WsEvent) => void) {
     if (!session?.token) return;
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
     let attempt = 0;
 
-    const connect = () => {
+    const invalidateTransferData = () => {
+      if (invalidateTimer) return;
+      invalidateTimer = setTimeout(() => {
+        invalidateTimer = null;
+        void queryClient.invalidateQueries({ queryKey: ["transfers"] });
+        void queryClient.invalidateQueries({ queryKey: ["stats"] });
+      }, 250);
+    };
+
+    const connect = async () => {
       if (closed) return;
       try {
-        socket = new WebSocket(buildWebSocketUrl(session.token));
+        socket = new WebSocket(await buildWebSocketUrl(session.token));
       } catch {
+        if (!closed) retryTimer = setTimeout(connect, 1000);
         return;
       }
       socket.onopen = () => {
@@ -134,7 +145,7 @@ export function useReceiverEvents(onEvent?: (event: WsEvent) => void) {
           const parsed = JSON.parse(String(message.data)) as WsEvent;
           handlerRef.current?.(parsed);
           if (parsed.event.startsWith("transfer.")) {
-            void queryClient.invalidateQueries({ queryKey: ["transfers"] });
+            invalidateTransferData();
           }
           if (parsed.event.startsWith("device.")) {
             void queryClient.invalidateQueries({ queryKey: ["devices"] });
@@ -161,6 +172,7 @@ export function useReceiverEvents(onEvent?: (event: WsEvent) => void) {
     return () => {
       closed = true;
       if (retryTimer) clearTimeout(retryTimer);
+      if (invalidateTimer) clearTimeout(invalidateTimer);
       socket?.close();
     };
   }, [session?.token, queryClient, resetSession]);

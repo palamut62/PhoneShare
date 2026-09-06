@@ -10,6 +10,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+try:  # Paket adi surumler arasinda degisiyor.
+    from python_multipart.exceptions import MultipartParseError as MultiPartException
+except ImportError:  # pragma: no cover - surum farki
+    from multipart.exceptions import MultipartParseError as MultiPartException
+
 from ...core.errors import TooLargeError, ValidationError
 from ...core.state import ReceiverState
 from ...models import Device
@@ -26,6 +31,22 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 #: Ham govde icin guvenlik payi (multipart basliklari + hizalama).
 BODY_SLACK = 64 * 1024
+#: multipart sinir/baslik ek yuku icin ilave pay.
+MULTIPART_SLACK = 16 * 1024
+
+
+def _replay(body: bytes):
+    """Tamponlanmis govdeyi ayristiriciya tek seferde geri verir."""
+    sent = False
+
+    async def receive() -> dict[str, object]:
+        nonlocal sent
+        if sent:
+            return {"type": "http.disconnect"}
+        sent = True
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    return receive
 
 
 @router.post("/init", response_model=UploadInitResponse)
@@ -88,13 +109,23 @@ async def upload_chunk(
 
     content_type = (request.headers.get("content-type") or "").lower()
     if content_type.startswith("multipart/form-data"):
-        form = await request.form()
-        raw_index = form.get("chunk_index")
-        raw_hash = form.get("chunk_hash")
-        part = form.get("file")
-        if part is None or isinstance(part, str):
-            raise ValidationError("Parca verisi eksik.")
-        data = await part.read()
+        # Govde AYRISTIRILMADAN once sinirlanir: eksik/yanlis Content-Length
+        # bildiren istemciler de bellegi doldurmaz (PRD §83).
+        buffered = await _read_body(request, limit + MULTIPART_SLACK)
+        replayed = Request(request.scope, receive=_replay(buffered))
+        try:
+            form = await replayed.form(max_files=1, max_fields=8)
+        except MultiPartException as exc:
+            raise ValidationError("Parca verisi cozumlenemedi.") from exc
+        try:
+            raw_index = form.get("chunk_index")
+            raw_hash = form.get("chunk_hash")
+            part = form.get("file")
+            if part is None or isinstance(part, str):
+                raise ValidationError("Parca verisi eksik.")
+            data = await part.read()
+        finally:
+            await form.close()
         if len(data) > limit:
             raise TooLargeError("Gonderilen parca cok buyuk.")
         try:

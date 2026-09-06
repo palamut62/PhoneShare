@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from .routes import devices, health, pair, rules, settings, stats, targets, transfers, uploads, ws
+from .routes import (
+    devices,
+    health,
+    local_session,
+    pair,
+    rules,
+    settings,
+    stats,
+    targets,
+    transfers,
+    uploads,
+    ws,
+)
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(health.router)
@@ -17,5 +29,6 @@ api_router.include_router(transfers.router)
 api_router.include_router(stats.router)
 api_router.include_router(settings.router)
 api_router.include_router(ws.router)
+api_router.include_router(local_session.router)
 
 __all__ = ["api_router"]

@@ -9,6 +9,7 @@ import { API_ROUTES } from "@phoneshare/shared-types";
 import type {
   DeviceResponse,
   HealthResponse,
+  LocalSessionResponse,
   PairConfirmResponse,
   PairStartResponse,
   RuleCreateRequest,
@@ -20,17 +21,29 @@ import type {
   StatsResponse,
   TargetResponse,
   TransferListResponse,
+  WsTicketResponse,
 } from "@phoneshare/shared-types";
 
 import { errorFromResponse } from "@/lib/upload/http";
 import { UploadError } from "@/lib/upload/errors";
-import { getReceiverOrigin, isTauri } from "@/lib/tauri";
+import { getReceiverConnection, isTauri } from "@/lib/tauri";
 import { isSessionSentinel } from "@/lib/storage/session";
 
-async function resolveApiUrl(path: string): Promise<string> {
-  if (!isTauri()) return path;
-  const origin = await getReceiverOrigin();
-  return origin ? new URL(path, origin).toString() : path;
+async function resolveConnection(path: string): Promise<{ url: string; localToken: string | null }> {
+  if (!isTauri()) return { url: path, localToken: null };
+  const connection = await getReceiverConnection();
+  return {
+    url: connection ? new URL(path, connection.origin).toString() : path,
+    localToken: connection?.local_token ?? null,
+  };
+}
+
+/** One transport resolver for ordinary API calls and upload fetches. */
+export async function receiverFetch(input: string, init?: RequestInit): Promise<Response> {
+  const { url, localToken } = await resolveConnection(input);
+  const headers = new Headers(init?.headers);
+  if (localToken) headers.set("X-PhoneShare-Local-Token", localToken);
+  return fetch(url, { ...init, headers, credentials: "include" });
 }
 
 async function request<T>(
@@ -40,11 +53,14 @@ async function request<T>(
   const { token, headers, ...rest } = init;
   let response: Response;
   try {
-    response = await fetch(await resolveApiUrl(path), {
+    const { url, localToken } = await resolveConnection(path);
+    response = await fetch(url, {
       ...rest,
+      credentials: "include",
       headers: {
         ...(rest.body ? { "Content-Type": "application/json" } : {}),
         ...(token && !isSessionSentinel(token) ? { Authorization: `Bearer ${token}` } : {}),
+        ...(localToken ? { "X-PhoneShare-Local-Token": localToken } : {}),
         ...(headers as Record<string, string> | undefined),
       },
     });
@@ -77,6 +93,11 @@ export function confirmPairing(code: string, deviceName: string): Promise<PairCo
 /** Ana ekran PWA'sinda Safari'den kopyalanan HttpOnly cookie ile oturumu geri yukler. */
 export function getCurrentSession(): Promise<SessionResponse> {
   return request<SessionResponse>("/api/session", { cache: "no-store" });
+}
+
+/** Establishes the loopback-browser management cookie. */
+export function bootstrapLocalSession(): Promise<LocalSessionResponse> {
+  return request<LocalSessionResponse>(API_ROUTES.localSession, { method: "POST", cache: "no-store" });
 }
 
 /** PRD §20/§93 — yalnizca sanal hedefler; gercek Windows yolu donmez. */
@@ -160,8 +181,11 @@ export function removeDevice(token: string, deviceId: string): Promise<void> {
 }
 
 /** PRD §46 — WebSocket adresi ayni origin uzerinden kurulur. */
-export function buildWebSocketUrl(token: string): string {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const query = isSessionSentinel(token) ? "" : `?token=${encodeURIComponent(token)}`;
-  return `${protocol}//${window.location.host}${API_ROUTES.ws}${query}`;
+export async function buildWebSocketUrl(token: string): Promise<string> {
+  const ticket = await request<WsTicketResponse>(API_ROUTES.wsTicket, { method: "POST", token });
+  const { url } = await resolveConnection(API_ROUTES.ws);
+  const origin = new URL(url, window.location.href);
+  origin.protocol = origin.protocol === "https:" ? "wss:" : "ws:";
+  origin.searchParams.set("ticket", ticket.ticket);
+  return origin.toString();
 }

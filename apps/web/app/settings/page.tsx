@@ -1,6 +1,6 @@
 "use client";
 
-import { MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, PRODUCT_OWNER } from "@phoneshare/shared-config";
+import { PRODUCT_OWNER } from "@phoneshare/shared-config";
 import type { RuleCreateRequest, RuleResponse } from "@phoneshare/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Github, Plus, Trash2 } from "lucide-react";
@@ -17,12 +17,7 @@ import { createRule, deleteRule, removeDevice, updateRule } from "@/lib/api/clie
 import type { Dictionary } from "@/lib/i18n";
 import { getTailscaleStatus, isTauri, setRemoteAccess } from "@/lib/tauri";
 import type { Language, ThemePreference } from "@/lib/storage/session";
-import { formatBytes } from "@/lib/upload/speed";
 import { cn } from "@/lib/utils";
-
-const CHUNK_OPTIONS = [1, 2, 4, 8, 16, 32].map((mb) => mb * 1024 * 1024).filter(
-  (value) => value >= MIN_CHUNK_SIZE && value <= MAX_CHUNK_SIZE,
-);
 
 export default function SettingsPage() {
   return (
@@ -33,7 +28,7 @@ export default function SettingsPage() {
 }
 
 function SettingsScreen() {
-  const { t, locale, preferences, savePreferences, session, resetSession } = useApp();
+  const { t, preferences, savePreferences, session, resetSession } = useApp();
   const { isOnline, isChecking, deviceName } = useHealth();
   const [confirmReset, setConfirmReset] = React.useState(false);
   const openPairDialog = useOpenPairDialog();
@@ -98,23 +93,6 @@ function SettingsScreen() {
               onCheckedChange={(value) => void savePreferences({ rememberLastTarget: value })}
               label={t.rememberTarget}
             />
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            <Label htmlFor="chunk-size">{t.chunkSize}</Label>
-            <Select
-              id="chunk-size"
-              value={String(preferences.chunkSize)}
-              onChange={(event) => void savePreferences({ chunkSize: Number(event.target.value) })}
-            >
-              {CHUNK_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {formatBytes(value, locale)}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              The computer&apos;s preferred chunk size takes priority when available.
-            </p>
           </div>
         </Card>
 
@@ -373,7 +351,7 @@ function PresetsCard() {
     const next = [
       ...preferences.presets,
       {
-        id: crypto.randomUUID(),
+        id: presetId(),
         name: trimmed,
         emoji: emoji.trim() || "📁",
         targetId: targetId || null,
@@ -458,6 +436,16 @@ function PresetsCard() {
       </div>
     </Card>
   );
+}
+
+/** `randomUUID` is unavailable in some ordinary HTTP phone contexts. Preset IDs are not secrets. */
+function presetId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint32Array(2));
+    return `preset_${bytes[0]!.toString(36)}${bytes[1]!.toString(36)}`;
+  }
+  return `preset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
 type RuleMatchType = RuleCreateRequest["match_type"];

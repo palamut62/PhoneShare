@@ -170,18 +170,60 @@ class TestSpa:
             assert tc.get("/transfers").text == "<html>PWA</html>"
 
 
+def _ws_ticket(client, paired) -> str:
+    response = client.post(
+        "/api/ws-ticket", headers={"Authorization": f"Bearer {paired['token']}"}
+    )
+    assert response.status_code == 200
+    return response.json()["ticket"]
+
+
 class TestWebSocket:
-    def test_token_gerekir(self, client, paired) -> None:
+    def test_bilet_gerekir(self, client, paired) -> None:
         import pytest
         from starlette.websockets import WebSocketDisconnect
 
         with (
             pytest.raises(WebSocketDisconnect),
-            client.websocket_connect("/api/ws?token=sahte") as ws,
+            client.websocket_connect("/api/ws?ticket=sahte") as ws,
+        ):
+            ws.receive_text()
+
+    def test_cihaz_tokeni_url_ile_kabul_edilmez(self, client, paired) -> None:
+        """Yeniden kullanilabilir cihaz tokeni WebSocket URL'sinde gecerli degildir."""
+        import pytest
+        from starlette.websockets import WebSocketDisconnect
+
+        with (
+            pytest.raises(WebSocketDisconnect),
+            client.websocket_connect(f"/api/ws?ticket={paired['token']}") as ws,
         ):
             ws.receive_text()
 
     def test_online_olayi(self, client, paired) -> None:
-        with client.websocket_connect(f"/api/ws?token={paired['token']}") as ws:
+        with client.websocket_connect(f"/api/ws?ticket={_ws_ticket(client, paired)}") as ws:
             event = ws.receive_json()
             assert event["event"] == "receiver.online"
+
+    def test_cihaz_silinince_soket_kapanir(self, client, paired) -> None:
+        """F4: DELETE /api/devices/{id} acik soketi kapatir ve biletleri gecersizler."""
+        import pytest
+        from starlette.websockets import WebSocketDisconnect
+
+        ticket = _ws_ticket(client, paired)
+        stale_ticket = _ws_ticket(client, paired)
+        with client.websocket_connect(f"/api/ws?ticket={ticket}") as ws:
+            assert ws.receive_json()["event"] == "receiver.online"
+            response = client.delete(
+                f"/api/devices/{paired['device_id']}",
+                headers={"Authorization": f"Bearer {paired['token']}"},
+            )
+            assert response.status_code == 204
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive_json()
+
+        with (
+            pytest.raises(WebSocketDisconnect),
+            client.websocket_connect(f"/api/ws?ticket={stale_ticket}") as ws,
+        ):
+            ws.receive_text()

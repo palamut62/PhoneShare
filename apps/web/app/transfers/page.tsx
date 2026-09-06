@@ -1,7 +1,7 @@
 "use client";
 
 import type { TransferResponse } from "@phoneshare/shared-types";
-import { Search } from "lucide-react";
+import { Copy, Search } from "lucide-react";
 import * as React from "react";
 
 import { useApp } from "@/components/app-providers";
@@ -27,6 +27,8 @@ function TransfersScreen() {
   const { isOnline, isChecking, deviceName } = useHealth();
   const [rawQuery, setRawQuery] = React.useState("");
   const [query, setQuery] = React.useState("");
+  const [offset, setOffset] = React.useState(0);
+  const limit = 50;
 
   // PRD §41 — arama; yazarken istek yagmuru olmasin diye geciktirilir.
   React.useEffect(() => {
@@ -34,7 +36,9 @@ function TransfersScreen() {
     return () => clearTimeout(timer);
   }, [rawQuery]);
 
-  const transfers = useTransfers({ q: query || undefined, limit: 100 });
+  React.useEffect(() => setOffset(0), [query]);
+
+  const transfers = useTransfers({ q: query || undefined, limit, offset });
   const groups = React.useMemo(() => groupByDay(transfers.data?.items ?? [], locale), [transfers.data, locale]);
 
   return (
@@ -53,14 +57,19 @@ function TransfersScreen() {
               id="transfer-search"
               value={rawQuery}
               onChange={(event) => setRawQuery(event.target.value)}
-              placeholder="File name, target, date…"
+              placeholder="Search file name"
               className="pl-9"
               type="search"
             />
           </div>
         </div>
 
-        {groups.length === 0 ? (
+        {transfers.isError ? (
+          <Card>
+            <p role="alert" className="text-sm text-danger">Transfers could not be loaded.</p>
+            <Button variant="secondary" className="mt-3" onClick={() => void transfers.refetch()}>{t.retry}</Button>
+          </Card>
+        ) : groups.length === 0 ? (
           <Card>
             <p className="text-sm text-muted-foreground">{t.noTransfers}</p>
           </Card>
@@ -85,6 +94,14 @@ function TransfersScreen() {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Copy ${transfer.original_filename}`}
+                        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => void navigator.clipboard?.writeText(transfer.original_filename)}
+                      >
+                        <Copy aria-hidden className="h-4 w-4" />
+                      </button>
                       <span
                         className={
                           transfer.status === "COMPLETED"
@@ -114,6 +131,12 @@ function TransfersScreen() {
             </Card>
           </section>
         ))}
+        {transfers.data && (offset > 0 || transfers.data.items.length === limit) ? (
+          <div className="flex justify-between gap-3">
+            <Button variant="secondary" disabled={offset === 0} onClick={() => setOffset((current) => Math.max(0, current - limit))}>Previous</Button>
+            <Button variant="secondary" disabled={transfers.data.items.length < limit} onClick={() => setOffset((current) => current + limit)}>Next</Button>
+          </div>
+        ) : null}
       </div>
     </>
   );

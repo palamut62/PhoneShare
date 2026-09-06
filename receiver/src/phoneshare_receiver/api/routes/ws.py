@@ -7,38 +7,52 @@ Token query parametresi ile dogrulanir (tarayici WebSocket'i ozel baslik gondere
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 
 from ... import __version__
-from ...models import Device
-from ...security.tokens import hash_token
+from ..deps import (
+    current_device_or_loopback,
+    get_state,
+    local_browser_request_valid,
+    local_capability_valid,
+)
 
 router = APIRouter()
 
 
+@router.post("/ws-ticket")
+async def create_ws_ticket(
+    request: Request,
+    principal=Depends(current_device_or_loopback),
+    state=Depends(get_state),
+) -> dict[str, str | int]:
+    if principal is None and not (
+        local_browser_request_valid(request, state) or local_capability_valid(request, state)
+    ):
+        raise HTTPException(status_code=401, detail="Yetkisiz.")
+    identity = f"device:{principal.id}" if principal is not None else "local-admin"
+    ticket, expires_in = await state.issue_ws_ticket(identity)
+    return {"ticket": ticket, "expires_in": expires_in}
+
+
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(default="")) -> None:
+async def websocket_endpoint(websocket: WebSocket, ticket: str = Query(default="")) -> None:
     state = websocket.app.state.receiver
-    token = token or websocket.cookies.get("phoneshare_session", "")
-    is_loopback = bool(websocket.client and websocket.client.host in {"127.0.0.1", "::1"})
-    if not token and not is_loopback:
-        await websocket.close(code=4401)
-        return
-
-    device = None
-    if token:
-        async with state.db.session() as session:
-            device = (
-                await session.execute(select(Device).where(Device.token_hash == hash_token(token)))
-            ).scalar_one_or_none()
-
-    if token and (device is None or not device.enabled):
+    principal = await state.consume_ws_ticket(ticket)
+    if principal is None:
         await websocket.close(code=4401)
         return
 
     await websocket.accept()
-    await state.hub.connect(websocket)
+    await state.hub.connect(websocket, principal)
     try:
         await websocket.send_json(
             {"event": "receiver.online", "data": {"version": __version__}}

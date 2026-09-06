@@ -309,6 +309,17 @@ export const wsEventSchema = z.object({
   data: z.record(z.unknown()),
 });
 
+/** Local management browser bootstrap response. The cookie itself is HttpOnly. */
+export const localSessionResponseSchema = z.object({
+  authenticated: z.literal(true),
+});
+
+/** A short-lived, one-use WebSocket handshake credential. */
+export const wsTicketResponseSchema = z.object({
+  ticket: z.string().min(1),
+  expires_in: z.number().positive(),
+});
+
 /* ------------------------------ tipler ----------------------------- */
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
@@ -336,6 +347,8 @@ export type RuleCreateRequest = z.infer<typeof ruleCreateRequestSchema>;
 export type RuleUpdateRequest = z.infer<typeof ruleUpdateRequestSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 export type WsEvent = z.infer<typeof wsEventSchema>;
+export type LocalSessionResponse = z.infer<typeof localSessionResponseSchema>;
+export type WsTicketResponse = z.infer<typeof wsTicketResponseSchema>;
 
 /** PRD §57 — receiver uc noktalari (istemci tarafinda tek dogruluk kaynagi). */
 export const API_ROUTES = {
@@ -356,5 +369,7 @@ export const API_ROUTES = {
   settings: "/api/settings",
   rules: "/api/rules",
   rule: (id: string) => `/api/rules/${encodeURIComponent(id)}`,
+  localSession: "/api/local-session",
+  wsTicket: "/api/ws-ticket",
   ws: "/api/ws",
 } as const;

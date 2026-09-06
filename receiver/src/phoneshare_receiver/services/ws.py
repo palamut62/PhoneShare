@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import Any
 
 from ..core.logging_setup import get_logger
@@ -14,16 +15,41 @@ class ProgressHub:
     """Bagli istemcilere olay yayinlar. Yavas istemci digerlerini bloklamaz."""
 
     def __init__(self) -> None:
-        self._clients: set[Any] = set()
+        self._clients: dict[Any, tuple[str, asyncio.Queue[dict[str, Any]], asyncio.Task[None]]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: Any) -> None:
+    async def connect(self, websocket: Any, principal: str) -> None:
         async with self._lock:
-            self._clients.add(websocket)
+            queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=64)
+            self._clients[websocket] = (principal, queue, asyncio.create_task(self._sender(websocket, queue)))
+
+    async def _sender(self, websocket: Any, queue: asyncio.Queue[dict[str, Any]]) -> None:
+        try:
+            while True:
+                await asyncio.wait_for(websocket.send_json(await queue.get()), timeout=10)
+        except (asyncio.CancelledError, Exception):
+            with contextlib.suppress(Exception):
+                await websocket.close()
 
     async def disconnect(self, websocket: Any) -> None:
         async with self._lock:
-            self._clients.discard(websocket)
+            item = self._clients.pop(websocket, None)
+        if item:
+            item[2].cancel()
+
+    async def revoke(self, principal: str) -> None:
+        async with self._lock:
+            targets = [socket for socket, item in self._clients.items() if item[0] == principal]
+        for socket in targets:
+            await self.disconnect(socket)
+            with contextlib.suppress(Exception):
+                await socket.close(code=4403)
+
+    async def close(self) -> None:
+        async with self._lock:
+            sockets = list(self._clients)
+        for socket in sockets:
+            await self.disconnect(socket)
 
     @property
     def client_count(self) -> int:
@@ -33,13 +59,11 @@ class ProgressHub:
         payload = {"event": event, "data": data}
         async with self._lock:
             targets = list(self._clients)
-        dead: list[Any] = []
         for client in targets:
+            item = self._clients.get(client)
+            if item is None:
+                continue
             try:
-                await client.send_json(payload)
-            except Exception:
-                dead.append(client)
-        if dead:
-            async with self._lock:
-                for client in dead:
-                    self._clients.discard(client)
+                item[1].put_nowait(payload)
+            except asyncio.QueueFull:
+                await self.disconnect(client)

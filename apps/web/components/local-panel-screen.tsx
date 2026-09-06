@@ -22,7 +22,9 @@ interface LocalPanelScreenProps {
 export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: LocalPanelScreenProps) {
   const { t } = useApp();
   const devices = useDevices();
-  const registeredDevices = devices.data ?? [];
+  // Erisimi iptal edilen cihazlar gecmis/denetim icin veritabaninda kalir,
+  // ancak panelde kayitli telefon olarak gosterilmez.
+  const registeredDevices = (devices.data ?? []).filter((device) => device.enabled);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6 md:max-w-3xl md:px-8">
@@ -59,7 +61,8 @@ export function LocalPanelScreen({ onAddDevice, onSelectDevice, deviceName }: Lo
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-foreground">{device.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {device.enabled ? "Connected - open to manage" : "Disabled"}
+                    {/* "enabled" yetkilendirilmis demektir; anlik baglilik degil. */}
+                    Paired - open to manage
                   </span>
                 </span>
                 <ChevronRight aria-hidden className="h-5 w-5 text-muted-foreground" />

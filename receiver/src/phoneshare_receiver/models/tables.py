@@ -99,6 +99,10 @@ class Upload(Base):
     status: Mapped[str] = mapped_column(String(16), default="PREPARING", index=True)
     stored_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    requested_target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    resolved_filename: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    conflict_policy: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    decision_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

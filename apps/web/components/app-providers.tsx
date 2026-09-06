@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 
-import { getCurrentSession } from "@/lib/api/client";
+import { bootstrapLocalSession, getCurrentSession } from "@/lib/api/client";
 
 import { dictionaryFor, type Dictionary } from "@/lib/i18n";
 import { isTauri } from "@/lib/tauri";
@@ -14,6 +14,7 @@ import {
   clearSession,
   getPreferences,
   getSession,
+  isSessionSentinel,
   setPreferences as persistPreferences,
   setSession as persistSession,
   type DeviceSession,
@@ -76,6 +77,36 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       const [storedSession, storedPreferences] = await Promise.all([getSession(), getPreferences()]);
       if (!active) return;
       let restoredSession = storedSession;
+      const loopbackBrowser =
+        typeof window !== "undefined" && ["127.0.0.1", "[::1]", "localhost"].includes(window.location.hostname);
+      // A persisted sentinel is only a UI hint. Re-bootstrap on every shell/browser
+      // lifetime so a stale local cookie or former shell capability never grants access.
+      if (
+        restoredSession &&
+        isSessionSentinel(restoredSession.token) &&
+        (isTauri() || loopbackBrowser)
+      ) {
+        try {
+          await bootstrapLocalSession();
+        } catch {
+          restoredSession = null;
+        }
+      }
+      if (!restoredSession) {
+        if (isTauri() || loopbackBrowser) {
+          try {
+            await bootstrapLocalSession();
+            restoredSession = {
+              deviceId: "local-admin",
+              deviceName: "This computer",
+              token: isTauri() ? DESKTOP_SESSION_TOKEN : COOKIE_SESSION_TOKEN,
+              pairedAt: Date.now(),
+            };
+          } catch {
+            // A LAN phone is never treated as a local administrator after a failed bootstrap.
+          }
+        }
+      }
       if (!restoredSession) {
         try {
           const cookieSession = await getCurrentSession();

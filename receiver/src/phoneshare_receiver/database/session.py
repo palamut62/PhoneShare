@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -38,6 +38,20 @@ class Database:
     async def create_all(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Older installations were created with create_all and have no
+            # alembic stamp.  These additions are intentionally additive.
+            columns = (await conn.execute(text("PRAGMA table_info(uploads)"))).mappings().all()
+            present = {row["name"] for row in columns}
+            additions = {
+                "requested_target_id": "VARCHAR(64)",
+                "resolved_filename": "VARCHAR(512)",
+                "conflict_policy": "VARCHAR(16)",
+                "decision_fingerprint": "VARCHAR(64)",
+            }
+            for name, sql_type in additions.items():
+                if name not in present:
+                    await conn.execute(text(f"ALTER TABLE uploads ADD COLUMN {name} {sql_type}"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_uploads_decision_fingerprint ON uploads (decision_fingerprint)"))
 
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
