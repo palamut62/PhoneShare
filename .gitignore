@@ -41,3 +41,6 @@ opencode.json
 .specstory/
 .continue/
 apps/desktop/src-tauri/binaries/phoneshare-receiver.exe
+
+# Yerel derleme calisma alani (PyInstaller venv/dist)
+.build/
