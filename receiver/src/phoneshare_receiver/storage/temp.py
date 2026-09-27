@@ -78,6 +78,11 @@ class TempStore:
             os.fsync(out.fileno())
         return assembled, digest.hexdigest(), size
 
+    def list_upload_ids(self) -> list[str]:
+        if not self.root.is_dir():
+            return []
+        return [entry.name for entry in self.root.iterdir() if entry.is_dir()]
+
     def cleanup(self, upload_id: str) -> None:
         shutil.rmtree(self.upload_dir(upload_id), ignore_errors=True)
 

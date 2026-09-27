@@ -11,7 +11,15 @@ from ..database import Database, sqlite_url
 from ..services.ws import ProgressHub
 from ..storage.temp import TempStore
 from .config import ReceiverConfig, data_dir
+from .logging_setup import get_logger
 from .ratelimit import ByteRateLimiter, RequestRateLimiter
+
+#: Yerel yonetim (PC paneli) cerez oturumunun omru.
+LOCAL_SESSION_TTL_SEC = 12 * 60 * 60
+#: Terk edilmis yukleme taramasi araligi.
+UPLOAD_SWEEP_INTERVAL_SEC = 60 * 60
+
+log = get_logger("state")
 
 
 class ReceiverState:
@@ -28,7 +36,7 @@ class ReceiverState:
         self.local_capability: str | None = None
         self.management_port: int | None = None
         self._ws_tickets: dict[str, tuple[str, datetime]] = {}
-        self._local_sessions: set[str] = set()
+        self._local_sessions: dict[str, datetime] = {}
         self._ticket_lock = asyncio.Lock()
         self.upload_locks: dict[str, asyncio.Lock] = {}
         self.upload_locks_guard = asyncio.Lock()
@@ -43,6 +51,27 @@ class ReceiverState:
         self.temp_store.root.mkdir(parents=True, exist_ok=True)
         await self.db.create_all()
         await self._seed_default_target()
+        # Coken bir surecten kalan VERIFYING kayitlari ve yetim .temp klasorleri toparlanir.
+        await self.sweep_uploads(recover_verifying=True)
+        self._sweeper = asyncio.create_task(self._sweep_loop())
+
+    async def sweep_uploads(self, *, recover_verifying: bool = False) -> int:
+        from ..services.uploads import expire_stale_uploads
+
+        async with self.db.session() as session:
+            expired = await expire_stale_uploads(
+                session, self.temp_store, recover_verifying=recover_verifying
+            )
+            await session.commit()
+        return expired
+
+    async def _sweep_loop(self) -> None:
+        while True:
+            await asyncio.sleep(UPLOAD_SWEEP_INTERVAL_SEC)
+            try:
+                await self.sweep_uploads()
+            except Exception:  # pragma: no cover - arka plan gorevi asla olmemeli
+                log.exception("yukleme temizligi basarisiz")
 
     async def issue_ws_ticket(self, principal: str) -> tuple[str, int]:
         ticket = secrets.token_urlsafe(32)
@@ -54,12 +83,15 @@ class ReceiverState:
         return ticket, 30
 
     def issue_local_session(self) -> str:
+        now = datetime.now(tz=UTC)
+        self._local_sessions = {k: v for k, v in self._local_sessions.items() if v > now}
         session = secrets.token_urlsafe(32)
-        self._local_sessions.add(session)
+        self._local_sessions[session] = now + timedelta(seconds=LOCAL_SESSION_TTL_SEC)
         return session
 
     def local_session_valid(self, value: str | None) -> bool:
-        return bool(value and value in self._local_sessions)
+        expires = self._local_sessions.get(value or "")
+        return bool(expires and expires > datetime.now(tz=UTC))
 
     async def consume_ws_ticket(self, ticket: str) -> str | None:
         async with self._ticket_lock:
@@ -76,6 +108,12 @@ class ReceiverState:
     async def upload_lock(self, upload_id: str) -> asyncio.Lock:
         async with self.upload_locks_guard:
             return self.upload_locks.setdefault(upload_id, asyncio.Lock())
+
+    async def release_upload_lock(self, upload_id: str) -> None:
+        async with self.upload_locks_guard:
+            lock = self.upload_locks.get(upload_id)
+            if lock is not None and not lock.locked():
+                self.upload_locks.pop(upload_id, None)
 
     async def _seed_default_target(self) -> None:
         """Ana klasor secilmisse `Genel` hedefini bir kez olusturur (PRD §10/§20)."""
@@ -97,5 +135,8 @@ class ReceiverState:
             await session.commit()
 
     async def shutdown(self) -> None:
+        sweeper = getattr(self, "_sweeper", None)
+        if sweeper is not None:
+            sweeper.cancel()
         await self.hub.close()
         await self.db.dispose()

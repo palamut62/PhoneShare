@@ -65,7 +65,10 @@ ve sirlarin loglara sizmasi.
 
 ## Aktarim guvenligi
 
-Yerel ag icin HTTP yeterlidir; harici erisim gerekiyorsa `scripts/gen_cert.py` ile
+**Uyari:** Duz HTTP'de cihaz token'i ve dosyalar sifrelenmeden iletilir; ayni agdaki
+biri (ozellikle ortak/misafir Wi-Fi) trafigi izleyebilir. Yalnizca guvendiginiz ev/ofis
+aginda HTTP kullanin. Harici
+erisim veya paylasimli aglar icin `scripts/gen_cert.py` ile
 self-signed sertifika uretip TLS ile calistirin veya Tailscale gibi bir ozel ag kullanin.
 PWA ve API ayni origin'de sunuldugu icin mixed-content olusmaz.
 

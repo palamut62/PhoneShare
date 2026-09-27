@@ -7,6 +7,9 @@ Chunk govdesi iki bicimde kabul edilir:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +18,7 @@ try:  # Paket adi surumler arasinda degisiyor.
 except ImportError:  # pragma: no cover - surum farki
     from multipart.exceptions import MultipartParseError as MultiPartException
 
-from ...core.errors import TooLargeError, ValidationError
+from ...core.errors import ReceiverError, TooLargeError, ValidationError
 from ...core.state import ReceiverState
 from ...models import Device
 from ...schemas import (
@@ -33,6 +36,23 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 BODY_SLACK = 64 * 1024
 #: multipart sinir/baslik ek yuku icin ilave pay.
 MULTIPART_SLACK = 16 * 1024
+
+
+@asynccontextmanager
+async def _critical(lock, session: AsyncSession) -> AsyncIterator[None]:
+    """Kilidi tutarken islemi COMMIT eder: kilit birakildiginda sonraki istek
+    guncel durumu gorur (ayni upload icin es zamanli complete/chunk yarisi olmaz)."""
+    async with lock:
+        try:
+            yield
+        except ReceiverError:
+            await session.commit()
+            raise
+        except BaseException:
+            await session.rollback()
+            raise
+        else:
+            await session.commit()
 
 
 def _replay(body: bytes):
@@ -56,17 +76,19 @@ async def init_upload(
     state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> UploadInitResponse:
-    result = await uploads_service.init_upload(
-        session,
-        state.config,
-        state.temp_store,
-        device,
-        filename=payload.filename,
-        size=payload.size,
-        mime_type=payload.mime_type,
-        target_id=payload.target_id,
-        sha256=payload.sha256,
-    )
+    # Kota kontrolu + kayit tek kritik bolgede: es zamanli init'ler siniri asamaz.
+    async with _critical(state.admission_lock, session):
+        result = await uploads_service.init_upload(
+            session,
+            state.config,
+            state.temp_store,
+            device,
+            filename=payload.filename,
+            size=payload.size,
+            mime_type=payload.mime_type,
+            target_id=payload.target_id,
+            sha256=payload.sha256,
+        )
     upload = result.upload
     await state.hub.broadcast(
         "transfer.started",
@@ -141,16 +163,17 @@ async def upload_chunk(
         data = await _read_body(request, limit)
 
     await state.bytes.consume(len(data))
-    updated = await uploads_service.save_chunk(
-        session,
-        state.temp_store,
-        device,
-        upload_id,
-        chunk_index=index,
-        chunk_hash=digest,
-        data=data,
-    )
-    received_chunks = len(await uploads_service.received_indexes(session, upload_id))
+    async with _critical(await state.upload_lock(upload_id), session):
+        updated = await uploads_service.save_chunk(
+            session,
+            state.temp_store,
+            device,
+            upload_id,
+            chunk_index=index,
+            chunk_hash=digest,
+            data=data,
+        )
+        received_chunks = len(await uploads_service.received_indexes(session, upload_id))
     await state.hub.broadcast(
         "transfer.progress",
         {
@@ -175,9 +198,13 @@ async def complete_upload(
     state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> UploadCompleteResponse:
-    upload, transfer = await uploads_service.complete_upload(
-        session, state.config, state.temp_store, device, upload_id
-    )
+    try:
+        async with _critical(await state.upload_lock(upload_id), session):
+            upload, transfer = await uploads_service.complete_upload(
+                session, state.config, state.temp_store, device, upload_id
+            )
+    finally:
+        await state.release_upload_lock(upload_id)
     await state.hub.broadcast(
         "transfer.completed",
         {"transfer_id": upload.transfer_id, "status": upload.status},
@@ -201,5 +228,7 @@ async def cancel_upload(
     state: ReceiverState = Depends(get_state),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    await uploads_service.cancel_upload(session, state.temp_store, device, upload_id)
+    async with _critical(await state.upload_lock(upload_id), session):
+        await uploads_service.cancel_upload(session, state.temp_store, device, upload_id)
+    await state.release_upload_lock(upload_id)
     return Response(status_code=204)

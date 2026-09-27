@@ -62,6 +62,25 @@ def create_app(
         allow_credentials=True,
     )
 
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next):
+        response = await call_next(request)
+        headers = response.headers
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("Referrer-Policy", "no-referrer")
+        headers.setdefault("X-Frame-Options", "DENY")
+        # Next.js static export satir ici betik kullandigi icin 'unsafe-inline' gerekli;
+        # yine de dis kaynaklardan betik/baglanti yuklenemez.
+        headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+            "font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self'; "
+            "manifest-src 'self'; object-src 'none'; base-uri 'self'; "
+            "frame-ancestors 'none'; form-action 'self'",
+        )
+        return response
+
     # --- hata donusturucular (PRD §71: teknik detay sizmaz) ---
 
     @app.exception_handler(ReceiverError)

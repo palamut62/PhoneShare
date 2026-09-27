@@ -46,6 +46,10 @@ ACTIVE_STATUSES = ("PREPARING", "UPLOADING")
 #: yuklemeler buyuk bir dosya birlestirilirken de yanit vermeye devam eder.
 #: Es zamanli is parcacigi sayisi sinirli tutulur (PRD §53).
 _IO_SLOTS = asyncio.Semaphore(4)
+#: Hedef ad secimi + tasima icin surec geneli kilit.
+_PLACEMENT_LOCK = asyncio.Lock()
+#: Bu sure boyunca hic parca almayan aktif yuklemeler terk edilmis sayilir.
+STALE_UPLOAD_SEC = 24 * 60 * 60
 
 
 async def _offload(func, /, *args):
@@ -127,6 +131,17 @@ async def init_upload(
     ).hexdigest()
 
     target_row, target_dir = await targets.resolve_target_dir(session, config, resolved_target_id)
+
+    # Kural bir yeniden adlandirma uygulamadiysa genel adlandirma sablonu gecerlidir.
+    if resolved_name == safe_name and config.naming_template.strip():
+        resolved_name = sanitize_file_name(
+            apply_naming_template(
+                config.naming_template,
+                safe_name,
+                device_name=device.name,
+                folder_name=target_row.name if target_row else "",
+            )
+        )
 
     # --- PRD §28: ayni dosya icin devam eden upload var mi? ---
     existing = (
@@ -327,9 +342,10 @@ async def complete_upload(
             temp_store.assemble, upload_id, upload.total_chunks
         )
     except (OSError, FileNotFoundError) as exc:
-        return await _fail(
+        await _fail(
             session, temp_store, upload, transfer, "Aktarim tamamlanamadi.", detail=str(exc)
         )
+        raise ConflictError("Aktarim tamamlanamadi.") from exc
 
     if size != upload.size or (upload.sha256 and digest != upload.sha256):
         await _fail(
@@ -359,9 +375,21 @@ async def complete_upload(
         config.naming_template, upload.filename, device_name=device.name, folder_name=target_row.name if target_row else ""
     )
 
-    placement = await _offload(
-        plan_placement, target_dir, final_name, upload.conflict_policy or config.conflict_policy
-    )
+    policy = upload.conflict_policy or config.conflict_policy
+    roots = targets.effective_roots(config)
+    # Ad secimi ve tasima tek kritik bolgede: es zamanli ayni adli yuklemeler
+    # birbirinin uzerine yazamaz (TOCTOU).
+    stored = None
+    move_error: Exception | None = None
+    async with _PLACEMENT_LOCK:
+        placement = await _offload(plan_placement, target_dir, final_name, policy)
+        if not (placement.skipped or placement.path is None):
+            try:
+                stored = await _offload(
+                    atomic_move, assembled, placement.path, roots, placement.overwritten
+                )
+            except (OSError, PermissionError, UnsafePathError) as exc:
+                move_error = exc
     if placement.skipped or placement.path is None:
         await _offload(temp_store.cleanup, upload_id)
         upload.status = "CANCELLED"
@@ -372,14 +400,11 @@ async def complete_upload(
         await session.flush()
         return upload, transfer  # type: ignore[return-value]
 
-    roots = targets.effective_roots(config)
-    try:
-        stored = await _offload(atomic_move, assembled, placement.path, roots)
-    except (OSError, PermissionError, UnsafePathError) as exc:
+    if move_error is not None or stored is None:
         await _fail(
-            session, temp_store, upload, transfer, "Dosya kaydedilemedi.", detail=str(exc)
+            session, temp_store, upload, transfer, "Dosya kaydedilemedi.", detail=str(move_error)
         )
-        raise ConflictError("Dosya kaydedilemedi.") from exc
+        raise ConflictError("Dosya kaydedilemedi.") from move_error
 
     await _offload(temp_store.cleanup, upload_id)
 
@@ -504,3 +529,49 @@ async def _fail(
         extra={"category": "error", "upload_id": upload.id, "detail": detail},
     )
     return upload, transfer
+
+
+async def expire_stale_uploads(
+    session: AsyncSession,
+    temp_store: TempStore,
+    *,
+    max_age_sec: int = STALE_UPLOAD_SEC,
+    recover_verifying: bool = False,
+) -> int:
+    """Terk edilmis yuklemeleri kapatir ve gecici dosyalarini siler.
+
+    - `max_age_sec` boyunca guncellenmeyen PREPARING/UPLOADING yuklemeler CANCELLED olur
+      (aksi halde cihazin toplam transfer kotasini kalici olarak doldururlar).
+    - `recover_verifying=True` (acilista): coken bir surecten kalan VERIFYING kayitlari FAILED olur.
+    - Veritabaninda aktif karsiligi olmayan `.temp` klasorleri silinir.
+    """
+    cutoff = _now().timestamp() - max_age_sec
+    statuses = ACTIVE_STATUSES + (("VERIFYING",) if recover_verifying else ())
+    rows = (
+        (await session.execute(select(Upload).where(Upload.status.in_(statuses)))).scalars().all()
+    )
+    expired = 0
+    for upload in rows:
+        stale = _aware(upload.updated_at or upload.created_at).timestamp() < cutoff
+        if upload.status != "VERIFYING" and not stale:
+            continue
+        transfer = await session.get(Transfer, upload.transfer_id) if upload.transfer_id else None
+        await _offload(temp_store.cleanup, upload.id)
+        upload.status = "FAILED" if upload.status == "VERIFYING" else "CANCELLED"
+        upload.error_message = "Aktarim zaman asimina ugradi."
+        if transfer is not None and transfer.status != "COMPLETED":
+            transfer.status = upload.status
+            transfer.error_message = upload.error_message
+            transfer.completed_at = _now()
+        expired += 1
+    await session.flush()
+
+    active = set(
+        (
+            await session.execute(select(Upload.id).where(Upload.status.in_(ACTIVE_STATUSES)))
+        ).scalars().all()
+    )
+    for name in await _offload(temp_store.list_upload_ids):
+        if name not in active:
+            await _offload(temp_store.cleanup, name)
+    return expired

@@ -122,7 +122,9 @@ def _dir_size(path: Path) -> int:
     return total
 
 
-def atomic_move(source: Path, destination: Path, allowed_roots: list[Path]) -> Path:
+def atomic_move(
+    source: Path, destination: Path, allowed_roots: list[Path], overwrite: bool = False
+) -> Path:
     """Ayni volume'de `os.replace` (atomik); farkli volume'de kopyala-degistir-sil.
 
     Hedefin allow-list altinda oldugu son bir kez daha dogrulanir (TOCTOU savunmasi).
@@ -131,13 +133,37 @@ def atomic_move(source: Path, destination: Path, allowed_roots: list[Path]) -> P
         raise PermissionError("Hedef yol izin listesinin disinda.")
 
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if not overwrite and destination.exists():
+        # Ayni ad az once baska bir yukleme tarafindan alindi: asla uzerine yazma.
+        raise FileExistsError(f"Hedef dosya zaten var: {destination.name}")
     try:
-        os.replace(source, destination)
+        if overwrite:
+            os.replace(source, destination)
+        else:
+            _move_no_clobber(source, destination)
         return destination
+    except FileExistsError:
+        raise
     except OSError:
         # Farkli surucu/volume: gecici ada kopyalayip atomik olarak yerine koy.
         tmp = destination.with_name(destination.name + ".incoming")
-        shutil.copyfile(source, tmp)
-        os.replace(tmp, destination)
+        try:
+            shutil.copyfile(source, tmp)
+            if overwrite:
+                os.replace(tmp, destination)
+            else:
+                _move_no_clobber(tmp, destination)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
         source.unlink(missing_ok=True)
         return destination
+
+
+def _move_no_clobber(source: Path, destination: Path) -> None:
+    """Hedef varsa FileExistsError veren tasima (Windows'ta os.rename zaten boyledir)."""
+    if os.name == "nt":
+        os.rename(source, destination)
+        return
+    os.link(source, destination)  # hedef varsa FileExistsError
+    source.unlink()
