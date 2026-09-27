@@ -29,6 +29,8 @@ export function TargetPicker({
     return a.name.localeCompare(b.name, "tr");
   });
   const favorites = sorted.filter((target) => target.favorite).slice(0, 3);
+  // Tek favori zaten secicide gorunur; cip yalnizca birden fazla favori varsa kisayoldur.
+  const showChips = favorites.length > 1;
 
   return (
     <div className="flex flex-col gap-2">
@@ -47,7 +49,7 @@ export function TargetPicker({
         ))}
       </Select>
 
-      {favorites.length > 0 ? (
+      {showChips ? (
         <div className="flex flex-wrap gap-2 pt-1">
           {favorites.map((target) => (
             <button

@@ -110,7 +110,13 @@ export async function getSession(): Promise<DeviceSession | null> {
 export async function setSession(session: DeviceSession): Promise<void> {
   await idbSet(SESSION_KEY, session);
   try {
-    localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify(session));
+    // Yerel yedek IndexedDB okunamadigi nadir durumlar icindir; gercek cihaz token'i
+    // localStorage'a (JS ile okunabilir, XSS'e acik) hicbir zaman yazilmaz.
+    const backup: DeviceSession = {
+      ...session,
+      token: isSessionSentinel(session.token) ? session.token : COOKIE_SESSION_TOKEN,
+    };
+    localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify(backup));
   } catch {
     // IndexedDB ana depodur; yerel yedek kullanilamiyorsa oturum yine calisir.
   }

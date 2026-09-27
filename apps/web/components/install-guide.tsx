@@ -40,9 +40,11 @@ export function InstallGuide() {
         <X aria-hidden className="h-4 w-4" />
       </Button>
       <CardTitle>Add to Home Screen</CardTitle>
-      <p className="mt-2 flex items-center gap-2 text-sm text-foreground">
-        <Share aria-hidden className="h-4 w-4 shrink-0 text-primary" />
-        In Safari: <strong>Share</strong> → <strong>Add to Home Screen</strong> → <strong>Add</strong>
+      <p className="mt-2 pr-8 text-sm leading-6 text-foreground">
+        <Share aria-hidden className="mr-1.5 inline h-4 w-4 -translate-y-px text-primary" />
+        In Safari: <strong className="whitespace-nowrap">Share</strong> →{" "}
+        <strong className="whitespace-nowrap">Add to Home Screen</strong> →{" "}
+        <strong className="whitespace-nowrap">Add</strong>
       </p>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
         Opens full screen. Your session stays saved in this shortcut after pairing.

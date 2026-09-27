@@ -2,7 +2,8 @@
  * Ince IndexedDB sarmalayicisi (PRD §5).
  *
  * Cihaz token'inin ana deposu IndexedDB'dir; iOS PWA dayanıklılığı için aynı origin
- * localStorage yedeği session.ts tarafından yönetilir. Token URL'ye veya log'a yazılmaz.
+ * localStorage yedeği session.ts tarafından yönetilir. Gerçek token o yedekte hiç
+ * tutulmaz (yalnızca sentinel değerler yazılır). Token URL'ye veya log'a yazılmaz.
  */
 
 const DB_NAME = "phoneshare";

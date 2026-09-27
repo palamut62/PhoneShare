@@ -165,7 +165,7 @@ function HomeScreen() {
     <>
       <StatusHeader isOnline={isOnline} isChecking={isChecking} deviceName={deviceName} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-3 px-4 pb-28 pt-3 md:pb-24">
         {!isOnline && !isChecking ? (
           <div
             role="status"
@@ -193,7 +193,7 @@ function HomeScreen() {
                 <p className="mt-1 text-sm text-muted-foreground">{t.noDeviceHint}</p>
               </div>
             </div>
-            <Button size="lg" className="mt-3" onClick={openPairDialog}>
+            <Button className="mt-3 w-full sm:w-auto" onClick={openPairDialog}>
               <Smartphone aria-hidden className="h-4 w-4" />
               {t.addDevice}
             </Button>
@@ -211,7 +211,7 @@ function HomeScreen() {
           </div>
         )}
 
-        <InstallGuide />
+        {localPanel ? null : <InstallGuide />}
 
         {/* PRD §74 — hizli gonderim presetleri; tiklayinca hedef atanir ve dosya secici acilir. */}
         {preferences.presets.length > 0 ? (

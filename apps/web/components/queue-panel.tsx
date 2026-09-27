@@ -40,7 +40,7 @@ export function QueuePanel({
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
-        <CardTitle>TRANSFERLER</CardTitle>
+        <CardTitle>TRANSFERS</CardTitle>
         <Button variant="ghost" className="min-h-9 px-2 text-xs" onClick={onClear}>
           Clear completed
         </Button>
@@ -51,7 +51,7 @@ export function QueuePanel({
           <p className="text-sm font-medium">
             {summary.total} Files · {summary.completed} / {summary.total} completed
           </p>
-          <Progress className="mt-2" value={summary.percent} label="Toplam ilerleme" />
+          <Progress className="mt-2" value={summary.percent} label="Total progress" />
           <p className="mt-2 text-xs text-muted-foreground">
             {formatBytes(summary.uploadedBytes, locale)} / {formatBytes(summary.totalBytes, locale)}
           </p>
@@ -87,7 +87,7 @@ export function QueuePanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`${item.filename} transferini iptal et`}
+                    aria-label={`Cancel transfer of ${item.filename}`}
                     onClick={() => onCancel(item.id)}
                   >
                     <X aria-hidden className="h-4 w-4" />
@@ -99,10 +99,10 @@ export function QueuePanel({
                 <>
                   <Progress className="mt-2" value={item.progress.percent} label={item.filename} />
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    %{Math.round(item.progress.percent)} ·{" "}
+                    {Math.round(item.progress.percent)}% ·{" "}
                     {formatBytes(item.progress.uploadedBytes, locale)} /{" "}
                     {formatBytes(item.progress.totalBytes, locale)} ·{" "}
-                    {formatSpeed(item.progress.bytesPerSecond, locale)} · Kalan:{" "}
+                    {formatSpeed(item.progress.bytesPerSecond, locale)} · ETA{" "}
                     {formatEta(item.progress.etaSeconds)}
                   </p>
                 </>
